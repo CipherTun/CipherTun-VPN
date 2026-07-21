@@ -161,6 +161,31 @@ object SingBoxConfigFactory {
                 if (profile.username.isNotBlank()) put("username", profile.username)
                 if (profile.password.isNotBlank()) put("password", profile.password)
             }
+
+        is OutboundProfile.Ssh -> JSONObject()
+            .put("type", "ssh")
+            .put("server", profile.server)
+            .put("server_port", profile.serverPort)
+            .put("user", profile.username)
+            .apply {
+                if (profile.password.isNotBlank()) put("password", profile.password)
+                if (profile.privateKey.isNotBlank()) put("private_key", profile.privateKey)
+            }
+
+        is OutboundProfile.ShadowTls -> JSONObject()
+            .put("type", "shadowtls")
+            .put("server", profile.server)
+            .put("server_port", profile.serverPort)
+            .put("password", profile.password)
+            .put("version", profile.version)
+            .apply { putTls(profile.tls) }
+
+        is OutboundProfile.AnyTls -> JSONObject()
+            .put("type", "anytls")
+            .put("server", profile.server)
+            .put("server_port", profile.serverPort)
+            .put("password", profile.password)
+            .apply { putTls(profile.tls) }
     }
 
     private fun JSONObject.putTls(tls: TlsConfig) {

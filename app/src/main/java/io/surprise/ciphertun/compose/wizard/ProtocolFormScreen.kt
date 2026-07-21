@@ -71,6 +71,7 @@ fun ProtocolFormScreen(
     var localAddress by remember { mutableStateOf("10.0.0.2/32") }
     var mtu by remember { mutableStateOf("1408") }
     var username by remember { mutableStateOf("") }
+    var shadowTlsVersion by remember { mutableStateOf("3") }
 
     var tlsEnabled by remember { mutableStateOf(protocol != ProtocolType.SOCKS && protocol != ProtocolType.HTTP) }
     var serverName by remember { mutableStateOf("") }
@@ -255,6 +256,42 @@ fun ProtocolFormScreen(
                     LabeledField("MTU", mtu, numeric = true) { mtu = it }
                 }
 
+                ProtocolType.SSH -> {
+                    LabeledField("Username", username) { username = it }
+                    LabeledField("Password", password) { password = it }
+                    LabeledField("Private Key (optional, paste full key)", privateKey) { privateKey = it }
+                }
+
+                ProtocolType.SHADOWTLS -> {
+                    LabeledField("Password", password) { password = it }
+                    DropdownField(
+                        label = "Version",
+                        value = shadowTlsVersion,
+                        options = listOf("1", "2", "3"),
+                        onSelected = { shadowTlsVersion = it }
+                    )
+                    TlsSection(
+                        enabled = tlsEnabled,
+                        onEnabledChange = { tlsEnabled = it },
+                        serverName = serverName,
+                        onServerNameChange = { serverName = it },
+                        insecure = insecure,
+                        onInsecureChange = { insecure = it }
+                    )
+                }
+
+                ProtocolType.ANYTLS -> {
+                    LabeledField("Password", password) { password = it }
+                    TlsSection(
+                        enabled = tlsEnabled,
+                        onEnabledChange = { tlsEnabled = it },
+                        serverName = serverName,
+                        onServerNameChange = { serverName = it },
+                        insecure = insecure,
+                        onInsecureChange = { insecure = it }
+                    )
+                }
+
                 ProtocolType.SOCKS, ProtocolType.HTTP -> {
                     LabeledField("Username", username) { username = it }
                     LabeledField("Password", password) { password = it }
@@ -285,6 +322,7 @@ fun ProtocolFormScreen(
                         localAddress = localAddress,
                         mtu = mtu.toIntOrNull() ?: 1408,
                         username = username,
+                        shadowTlsVersion = shadowTlsVersion.toIntOrNull() ?: 3,
                         tls = TlsConfig(
                             enabled = tlsEnabled,
                             serverName = serverName,
@@ -338,6 +376,7 @@ private fun buildProfile(
     localAddress: String,
     mtu: Int,
     username: String,
+    shadowTlsVersion: Int,
     tls: TlsConfig,
     transport: TransportConfig
 ): OutboundProfile = when (protocol) {
@@ -351,6 +390,9 @@ private fun buildProfile(
     ProtocolType.WIREGUARD -> OutboundProfile.WireGuard(remark, server, port, privateKey, peerPublicKey, presharedKey, localAddress, mtu)
     ProtocolType.SOCKS -> OutboundProfile.Socks(remark, server, port, username, password)
     ProtocolType.HTTP -> OutboundProfile.Http(remark, server, port, username, password)
+    ProtocolType.SSH -> OutboundProfile.Ssh(remark, server, port, username, password, privateKey)
+    ProtocolType.SHADOWTLS -> OutboundProfile.ShadowTls(remark, server, port, password, shadowTlsVersion, tls)
+    ProtocolType.ANYTLS -> OutboundProfile.AnyTls(remark, server, port, password, tls)
 }
 
 @Composable

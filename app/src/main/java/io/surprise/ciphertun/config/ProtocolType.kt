@@ -10,12 +10,16 @@ enum class ProtocolType(val displayName: String, val defaultPort: Int) {
     TUIC("TUIC", 443),
     WIREGUARD("WireGuard", 51820),
     SOCKS("SOCKS5", 1080),
-    HTTP("HTTP(S) Proxy", 8080);
+    HTTP("HTTP(S) Proxy", 8080),
+    SSH("SSH", 22),
+    SHADOWTLS("ShadowTLS", 443),
+    ANYTLS("AnyTLS", 443);
 
     companion object {
         val pickerOrder = listOf(
             VLESS, VMESS, TROJAN, SHADOWSOCKS,
             HYSTERIA2, HYSTERIA, TUIC, WIREGUARD,
+            ANYTLS, SHADOWTLS, SSH,
             SOCKS, HTTP
         )
     }

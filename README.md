@@ -24,6 +24,8 @@ Tap **Add Configuration**, pick a protocol, and fill in a plain form:
 - Hysteria, Hysteria2
 - TUIC
 - WireGuard
+- AnyTLS, ShadowTLS
+- SSH
 - SOCKS5, HTTP(S) proxy
 
 Each protocol's form only asks for the fields that protocol actually needs (server, port, credentials, and TLS/transport options where relevant). The app builds a valid sing-box configuration from those fields automatically and validates it before saving — you never see or edit raw JSON.
