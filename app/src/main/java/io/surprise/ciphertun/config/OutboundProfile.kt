@@ -142,4 +142,11 @@ sealed class OutboundProfile {
         val password: String = "",
         val tls: TlsConfig = TlsConfig()
     ) : OutboundProfile()
+
+    data class Tor(
+        override val remark: String = "",
+        override val server: String = "",
+        override val serverPort: Int = 0,
+        val dataDirectory: String = ""
+    ) : OutboundProfile()
 }

@@ -186,6 +186,12 @@ object SingBoxConfigFactory {
             .put("server_port", profile.serverPort)
             .put("password", profile.password)
             .apply { putTls(profile.tls) }
+
+        is OutboundProfile.Tor -> JSONObject()
+            .put("type", "tor")
+            .apply {
+                if (profile.dataDirectory.isNotBlank()) put("data_directory", profile.dataDirectory)
+            }
     }
 
     private fun JSONObject.putTls(tls: TlsConfig) {

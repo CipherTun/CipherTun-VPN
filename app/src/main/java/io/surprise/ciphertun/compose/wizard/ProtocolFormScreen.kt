@@ -72,6 +72,7 @@ fun ProtocolFormScreen(
     var mtu by remember { mutableStateOf("1408") }
     var username by remember { mutableStateOf("") }
     var shadowTlsVersion by remember { mutableStateOf("3") }
+    var dataDirectory by remember { mutableStateOf("") }
 
     var tlsEnabled by remember { mutableStateOf(protocol != ProtocolType.SOCKS && protocol != ProtocolType.HTTP) }
     var serverName by remember { mutableStateOf("") }
@@ -103,8 +104,10 @@ fun ProtocolFormScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             LabeledField("Name", remark) { remark = it }
-            LabeledField("Server", server) { server = it }
-            LabeledField("Port", port, numeric = true) { port = it }
+            if (protocol != ProtocolType.TOR) {
+                LabeledField("Server", server) { server = it }
+                LabeledField("Port", port, numeric = true) { port = it }
+            }
 
             when (protocol) {
                 ProtocolType.SHADOWSOCKS -> {
@@ -292,6 +295,12 @@ fun ProtocolFormScreen(
                     )
                 }
 
+                ProtocolType.TOR -> {
+                    LabeledField("Data Directory (optional, speeds up reconnects)", dataDirectory) {
+                        dataDirectory = it
+                    }
+                }
+
                 ProtocolType.SOCKS, ProtocolType.HTTP -> {
                     LabeledField("Username", username) { username = it }
                     LabeledField("Password", password) { password = it }
@@ -323,6 +332,7 @@ fun ProtocolFormScreen(
                         mtu = mtu.toIntOrNull() ?: 1408,
                         username = username,
                         shadowTlsVersion = shadowTlsVersion.toIntOrNull() ?: 3,
+                        dataDirectory = dataDirectory,
                         tls = TlsConfig(
                             enabled = tlsEnabled,
                             serverName = serverName,
@@ -377,6 +387,7 @@ private fun buildProfile(
     mtu: Int,
     username: String,
     shadowTlsVersion: Int,
+    dataDirectory: String,
     tls: TlsConfig,
     transport: TransportConfig
 ): OutboundProfile = when (protocol) {
@@ -393,6 +404,7 @@ private fun buildProfile(
     ProtocolType.SSH -> OutboundProfile.Ssh(remark, server, port, username, password, privateKey)
     ProtocolType.SHADOWTLS -> OutboundProfile.ShadowTls(remark, server, port, password, shadowTlsVersion, tls)
     ProtocolType.ANYTLS -> OutboundProfile.AnyTls(remark, server, port, password, tls)
+    ProtocolType.TOR -> OutboundProfile.Tor(remark, dataDirectory = dataDirectory)
 }
 
 @Composable
