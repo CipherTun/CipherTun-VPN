@@ -1,0 +1,118 @@
+name: Android Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  SING_BOX_REF: v1.14.0-alpha.45
+  GO_VERSION: "1.25.11"
+  NDK_VERSION: "28.0.13004108"
+
+jobs:
+  build-libbox:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sing-box core
+        uses: actions/checkout@v4
+        with:
+          repository: SagerNet/sing-box
+          ref: ${{ env.SING_BOX_REF }}
+          path: sing-box
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
+
+      - name: Build libbox aar (with Tor support)
+        working-directory: sing-box
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
+        run: |
+          make lib_install
+          make lib_android TAGS="with_quic,with_wireguard,with_utls,with_clash_api,with_gvisor,with_grpc,with_dhcp,with_tailscale,with_embedded_tor"
+
+      - name: Locate build output
+        working-directory: sing-box
+        run: find . -maxdepth 2 -iname "libbox*.aar"
+
+      - name: Upload libbox artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: libbox-aar
+          path: |
+            sing-box/libbox.aar
+            sing-box/libbox-legacy.aar
+          if-no-files-found: error
+
+  build-app:
+    needs: build-libbox
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout app
+        uses: actions/checkout@v4
+
+      - name: Download libbox artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: libbox-aar
+          path: app/libs
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
+
+      - name: Write local.properties
+        env:
+          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+        run: echo "$LOCAL_PROPERTIES" | base64 -d > local.properties
+
+      - name: Write release keystore
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        run: echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > app/release.keystore
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build debug APKs
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
+        run: ./gradlew :app:assemblePlayDebug :app:assembleOtherDebug :app:assembleOtherLegacyDebug
+
+      - name: Build release APKs
+        if: github.event_name == 'push'
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
+        run: ./gradlew :app:assemblePlayRelease :app:assembleOtherRelease :app:assembleOtherLegacyRelease
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: ciphertun-vpn-apks
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
