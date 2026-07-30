@@ -18,4 +18,3 @@ app/libs/libbox-legacy.aar
 app/schemas/
 .androidide/
 *.bak
-third_party/termux-app/
