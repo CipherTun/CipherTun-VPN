@@ -1,10 +1,8 @@
 package io.surprise.ciphertun.compose.screen.tools
 
 import android.net.Uri
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Usb
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Hub
@@ -57,17 +54,14 @@ import io.surprise.ciphertun.compose.component.rememberRemoteServers
 import io.surprise.ciphertun.compose.screen.usbip.USBIPStatusViewModel
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.constant.Status
-import io.surprise.ciphertun.database.Settings
-import io.surprise.ciphertun.terminal.TailscaleSSHPresentedSession
 import io.surprise.ciphertun.utils.RemoteControlManager
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolsScreen(
     navController: NavController,
     serviceStatus: Status = Status.Stopped,
     tailscaleViewModel: TailscaleStatusViewModel,
-    sshSharedViewModel: TailscaleSSHSharedViewModel,
     usbIPViewModel: USBIPStatusViewModel,
 ) {
     val remoteServers by rememberRemoteServers()
@@ -164,13 +158,6 @@ fun ToolsScreen(
                         index == endpoints.size - 1 -> RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
                         else -> RoundedCornerShape(0.dp)
                     }
-                    var showSSHMenu by remember { mutableStateOf(false) }
-                    val sshPeers = remember(endpoint) {
-                        endpoint.userGroups.flatMap { it.peers }.filter { peer ->
-                            peer.online && peer.sshHostKeys.isNotEmpty() &&
-                                peer.tailscaleIPs.isNotEmpty() && peer.id != endpoint.selfPeer?.id
-                        }
-                    }
                     Box {
                         ListItem(
                             headlineContent = {
@@ -192,63 +179,11 @@ fun ToolsScreen(
                             },
                             modifier = Modifier
                                 .clip(shape)
-                                .combinedClickable(
-                                    onClick = {
-                                        navController.navigate("tools/tailscale/${Uri.encode(endpoint.endpointTag)}")
-                                    },
-                                    onLongClick = {
-                                        if (sshPeers.isNotEmpty()) {
-                                            showSSHMenu = true
-                                        }
-                                    },
-                                ),
+                                .clickable {
+                                    navController.navigate("tools/tailscale/${Uri.encode(endpoint.endpointTag)}")
+                                },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         )
-                        DropdownMenu(
-                            expanded = showSSHMenu,
-                            onDismissRequest = { showSSHMenu = false },
-                        ) {
-                            if (sshPeers.size == 1) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.tailscale_ssh_connect)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Terminal, contentDescription = null)
-                                    },
-                                    onClick = {
-                                        showSSHMenu = false
-                                        handleSSHNavigation(
-                                            navController,
-                                            sshSharedViewModel,
-                                            sshPeers[0],
-                                            endpoint.endpointTag,
-                                        )
-                                    },
-                                )
-                            } else {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.tailscale_ssh_connect)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Terminal, contentDescription = null)
-                                    },
-                                    enabled = false,
-                                    onClick = {},
-                                )
-                                sshPeers.forEach { peer ->
-                                    DropdownMenuItem(
-                                        text = { Text(peer.hostName) },
-                                        onClick = {
-                                            showSSHMenu = false
-                                            handleSSHNavigation(
-                                                navController,
-                                                sshSharedViewModel,
-                                                peer,
-                                                endpoint.endpointTag,
-                                            )
-                                        },
-                                    )
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -434,33 +369,5 @@ fun ToolsScreen(
                 )
             }
         }
-    }
-}
-
-internal fun handleSSHNavigation(
-    navController: NavController,
-    sshSharedViewModel: TailscaleSSHSharedViewModel,
-    peer: TailscalePeerData,
-    endpointTag: String,
-) {
-    val quickConnectPeers = Settings.tailscaleSSHQuickConnectPeers
-    if (quickConnectPeers.contains(peer.stableID)) {
-        val usernames = Settings.tailscaleSSHRememberedUsernames
-        sshSharedViewModel.setPendingSession(
-            TailscaleSSHPresentedSession(
-                endpointTag = endpointTag,
-                peerHostName = peer.hostName,
-                peerAddress = peer.tailscaleIPs.first(),
-                username = usernames[peer.stableID]?.takeIf { it.isNotBlank() } ?: "root",
-                hostKeys = peer.sshHostKeys,
-            ),
-        )
-        navController.navigate(
-            "tools/tailscale/${Uri.encode(endpointTag)}/peer/${Uri.encode(peer.id)}/terminal",
-        )
-    } else {
-        navController.navigate(
-            "tools/tailscale/${Uri.encode(endpointTag)}/peer/${Uri.encode(peer.id)}/ssh",
-        )
     }
 }

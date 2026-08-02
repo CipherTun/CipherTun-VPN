@@ -328,50 +328,21 @@ fun TailscaleEndpointScreen(
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                             )
                         }
-                        val canSSH = peer.online && peer.sshHostKeys.isNotEmpty() &&
-                            peer.tailscaleIPs.isNotEmpty() && peer.id != endpoint.selfPeer?.id
-                        var showSSHMenu by remember { mutableStateOf(false) }
-                        Box {
-                            PeerItem(
-                                peer = peer,
-                                onClick = {
-                                    navController.navigate(
-                                        "tools/tailscale/${Uri.encode(endpointTag)}/peer/${Uri.encode(peer.id)}",
-                                    )
-                                },
-                                onLongClick = if (canSSH) {
-                                    { showSSHMenu = true }
-                                } else {
-                                    null
-                                },
-                                modifier = when {
-                                    group.peers.size == 1 -> Modifier.clip(RoundedCornerShape(12.dp))
-                                    index == 0 -> Modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                                    index == group.peers.lastIndex -> Modifier.clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                                    else -> Modifier
-                                },
-                            )
-                            DropdownMenu(
-                                expanded = showSSHMenu,
-                                onDismissRequest = { showSSHMenu = false },
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.tailscale_ssh_connect)) },
-                                    leadingIcon = {
-                                        Icon(Icons.Default.Terminal, contentDescription = null)
-                                    },
-                                    onClick = {
-                                        showSSHMenu = false
-                                        handleSSHNavigation(
-                                            navController,
-                                            sshSharedViewModel,
-                                            peer,
-                                            endpointTag,
-                                        )
-                                    },
+                        PeerItem(
+                            peer = peer,
+                            onClick = {
+                                navController.navigate(
+                                    "tools/tailscale/${Uri.encode(endpointTag)}/peer/${Uri.encode(peer.id)}",
                                 )
-                            }
-                        }
+                            },
+                            onLongClick = null,
+                            modifier = when {
+                                group.peers.size == 1 -> Modifier.clip(RoundedCornerShape(12.dp))
+                                index == 0 -> Modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                                index == group.peers.lastIndex -> Modifier.clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                                else -> Modifier
+                            },
+                        )
                     }
                 }
             }
