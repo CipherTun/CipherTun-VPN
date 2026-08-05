@@ -68,6 +68,9 @@ jobs:
       - name: Checkout app
         uses: actions/checkout@v4
 
+      - name: Fetch termux-app modules
+        run: bash scripts/setup-third-party.sh
+
       - name: Download libbox artifacts
         uses: actions/download-artifact@v4
         with:
