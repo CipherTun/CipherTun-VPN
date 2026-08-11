@@ -11,7 +11,9 @@ android {
     }
 
     buildFeatures {
-        androidResources = false
+        androidResources {
+            enable = false
+        }
         buildConfig = false
     }
 
