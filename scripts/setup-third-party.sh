@@ -20,8 +20,6 @@ echo "terminal-view/*" >> .git/info/sparse-checkout
 git fetch --depth 1 origin "$TERMUX_REF"
 git checkout FETCH_HEAD
 
-# AGP 9+ no longer supports proguard-android.txt.
-# Termux master may still contain the obsolete configuration.
 for file in \
     "$TARGET_DIR/terminal-emulator/build.gradle" \
     "$TARGET_DIR/terminal-view/build.gradle"
@@ -33,11 +31,10 @@ do
     fi
 done
 
-# Verify that no obsolete ProGuard configuration remains.
 if grep -R "getDefaultProguardFile('proguard-android.txt')" \
     "$TARGET_DIR/terminal-emulator" \
-    "$TARGET_DIR/terminal-view" 2>/dev/null; then
-
+    "$TARGET_DIR/terminal-view" 2>/dev/null
+then
     echo "ERROR: obsolete proguard-android.txt configuration remains."
     exit 1
 fi
