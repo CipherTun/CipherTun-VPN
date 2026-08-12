@@ -4,6 +4,7 @@ plugins {
 
 android {
     namespace = "io.github.libxposed.api"
+
     compileSdk = 36
 
     defaultConfig {
@@ -14,6 +15,7 @@ android {
         androidResources {
             enable = false
         }
+
         buildConfig = false
     }
 
