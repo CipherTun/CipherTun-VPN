@@ -20,6 +20,9 @@ env:
   GO_VERSION: "1.25.11"
   NDK_VERSION: "28.2.13676358"
 
+  # Gradle performance
+  GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8 -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+
 jobs:
   # ============================================================
   # Build sing-box / libbox
@@ -208,7 +211,8 @@ jobs:
         run: |
           ./gradlew help \
             --stacktrace \
-            --warning-mode all
+            --warning-mode all \
+            --build-cache
 
       # --------------------------------------------------------
       # Debug APKs
@@ -218,6 +222,8 @@ jobs:
           ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
         run: |
           ./gradlew \
+            --parallel \
+            --build-cache \
             :app:assemblePlayDebug \
             :app:assembleOtherDebug \
             :app:assembleOtherLegacyDebug
@@ -231,6 +237,8 @@ jobs:
           ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
         run: |
           ./gradlew \
+            --parallel \
+            --build-cache \
             :app:assemblePlayRelease \
             :app:assembleOtherRelease \
             :app:assembleOtherLegacyRelease
