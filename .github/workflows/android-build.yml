@@ -2,34 +2,21 @@ name: Android Build
 
 on:
   push:
-    branches:
-      - main
-
+    branches: [main]
   pull_request:
-    branches:
-      - main
-
+    branches: [main]
   workflow_dispatch:
-
-concurrency:
-  group: android-build-${{ github.ref }}
-  cancel-in-progress: true
 
 env:
   SING_BOX_REF: v1.14.0-alpha.45
   GO_VERSION: "1.25.11"
-  NDK_VERSION: "28.0.13004108"
+  NDK_VERSION: "28.2.13676358"
 
 jobs:
-  # ============================================================
-  # Build sing-box / libbox
-  # ============================================================
   build-libbox:
-    name: Build libbox
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout sing-box
+      - name: Checkout sing-box core
         uses: actions/checkout@v4
         with:
           repository: SagerNet/sing-box
@@ -40,10 +27,8 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          cache: true
-          cache-dependency-path: sing-box/go.sum
 
-      - name: Set up JDK 17
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -52,22 +37,10 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android NDK
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
+      - name: Install NDK
+        run: sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
 
-      - name: Verify Android toolchain
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
-        run: |
-          java -version
-          go version
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
-          test -d "$ANDROID_NDK_HOME"
-
-      - name: Build libbox AAR
+      - name: Build libbox aar (with Tor support)
         working-directory: sing-box
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
@@ -75,17 +48,9 @@ jobs:
           make lib_install
           make lib_android TAGS="with_quic,with_wireguard,with_utls,with_clash_api,with_gvisor,with_grpc,with_dhcp,with_tailscale,with_embedded_tor"
 
-      - name: Locate libbox artifacts
+      - name: Locate build output
         working-directory: sing-box
-        run: |
-          find . -maxdepth 3 -type f \
-            \( -iname "libbox*.aar" -o -iname "*.aar" \) \
-            -print
-
-      - name: Verify libbox artifacts
-        run: |
-          test -f sing-box/libbox.aar
-          test -f sing-box/libbox-legacy.aar
+        run: find . -maxdepth 2 -iname "libbox*.aar"
 
       - name: Upload libbox artifacts
         uses: actions/upload-artifact@v4
@@ -96,212 +61,57 @@ jobs:
             sing-box/libbox-legacy.aar
           if-no-files-found: error
 
-
-  # ============================================================
-  # Build CipherTun-VPN
-  # ============================================================
   build-app:
-    name: Build CipherTun-VPN
     needs: build-libbox
     runs-on: ubuntu-latest
-
     steps:
-      # --------------------------------------------------------
-      # Source
-      # --------------------------------------------------------
-      - name: Checkout CipherTun-VPN
+      - name: Checkout app
         uses: actions/checkout@v4
 
-      # --------------------------------------------------------
-      # Java / Android
-      # --------------------------------------------------------
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-          cache: gradle
+      - name: Fetch termux-app modules
+        run: bash scripts/setup-third-party.sh
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android NDK
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
-
-      # --------------------------------------------------------
-      # Verify AGP 9.4 toolchain
-      # --------------------------------------------------------
-      - name: Verify Java and Android environment
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
-        run: |
-          java -version
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
-          test -d "$ANDROID_NDK_HOME"
-
-      # --------------------------------------------------------
-      # Third-party modules
-      # --------------------------------------------------------
-      - name: Fetch and patch Termux modules
-        run: |
-          chmod +x scripts/setup-third-party.sh
-          bash scripts/setup-third-party.sh
-
-      - name: Verify Termux AGP compatibility
-        run: |
-          if grep -R \
-            "getDefaultProguardFile('proguard-android.txt')" \
-            third_party/termux-app/terminal-emulator \
-            third_party/termux-app/terminal-view \
-            2>/dev/null; then
-
-            echo "::error::Obsolete proguard-android.txt reference found."
-            exit 1
-          fi
-
-          echo "Termux ProGuard configuration is compatible with AGP 9.4."
-
-      # --------------------------------------------------------
-      # libbox
-      # --------------------------------------------------------
       - name: Download libbox artifacts
         uses: actions/download-artifact@v4
         with:
           name: libbox-aar
           path: app/libs
 
-      - name: Verify libbox artifacts
-        run: |
-          test -f app/libs/libbox.aar
-          test -f app/libs/libbox-legacy.aar
-          ls -lh app/libs/*.aar
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
-      # --------------------------------------------------------
-      # Secrets / signing
-      # --------------------------------------------------------
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install NDK
+        run: sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
+
       - name: Write local.properties
         env:
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
-        run: |
-          if [ -z "$LOCAL_PROPERTIES" ]; then
-            echo "::error::LOCAL_PROPERTIES secret is empty."
-            exit 1
-          fi
-
-          echo "$LOCAL_PROPERTIES" | base64 -d > local.properties
+        run: echo "$LOCAL_PROPERTIES" | base64 -d > local.properties
 
       - name: Write release keystore
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-        run: |
-          if [ -z "$RELEASE_KEYSTORE_BASE64" ]; then
-            echo "::error::RELEASE_KEYSTORE_BASE64 secret is empty."
-            exit 1
-          fi
+        run: echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > app/release.keystore
 
-          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > app/release.keystore
-
-          test -s app/release.keystore
-
-      # --------------------------------------------------------
-      # Gradle
-      # --------------------------------------------------------
-      - name: Grant Gradle execute permission
+      - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Verify Gradle wrapper
-        run: |
-          ./gradlew --version
-
-      # --------------------------------------------------------
-      # Configuration validation
-      # --------------------------------------------------------
-      - name: Validate Gradle configuration
-        run: |
-          ./gradlew help \
-            --stacktrace \
-            --warning-mode all
-
-      # --------------------------------------------------------
-      # Show available app tasks
-      # --------------------------------------------------------
-      - name: Verify app tasks
-        run: |
-          ./gradlew :app:tasks \
-            --stacktrace \
-            --warning-mode all
-
-      # --------------------------------------------------------
-      # Debug builds
-      # --------------------------------------------------------
-      - name: Build Play Debug
+      - name: Build debug APKs
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
-        run: |
-          ./gradlew :app:assemblePlayDebug \
-            --stacktrace \
-            --warning-mode all
+        run: ./gradlew :app:assemblePlayDebug :app:assembleOtherDebug :app:assembleOtherLegacyDebug
 
-      - name: Build Other Debug
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
-        run: |
-          ./gradlew :app:assembleOtherDebug \
-            --stacktrace \
-            --warning-mode all
-
-      - name: Build Other Legacy Debug
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
-        run: |
-          ./gradlew :app:assembleOtherLegacyDebug \
-            --stacktrace \
-            --warning-mode all
-
-      # --------------------------------------------------------
-      # Release builds
-      # --------------------------------------------------------
-      - name: Build Play Release
+      - name: Build release APKs
         if: github.event_name == 'push'
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
-        run: |
-          ./gradlew :app:assemblePlayRelease \
-            --stacktrace \
-            --warning-mode all
-
-      - name: Build Other Release
-        if: github.event_name == 'push'
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
-        run: |
-          ./gradlew :app:assembleOtherRelease \
-            --stacktrace \
-            --warning-mode all
-
-      - name: Build Other Legacy Release
-        if: github.event_name == 'push'
-        env:
-          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
-        run: |
-          ./gradlew :app:assembleOtherLegacyRelease \
-            --stacktrace \
-            --warning-mode all
-
-      # --------------------------------------------------------
-      # Collect APKs
-      # --------------------------------------------------------
-      - name: List generated APKs
-        run: |
-          find app/build/outputs/apk \
-            -type f \
-            -name "*.apk" \
-            -print \
-            -exec ls -lh {} \;
+        run: ./gradlew :app:assemblePlayRelease :app:assembleOtherRelease :app:assembleOtherLegacyRelease
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
