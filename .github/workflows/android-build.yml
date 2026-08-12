@@ -3,11 +3,11 @@ name: Android Build
 on:
   push:
     branches:
-      - main
+      - dev
 
   pull_request:
     branches:
-      - main
+      - dev
 
   workflow_dispatch:
 
@@ -19,9 +19,6 @@ env:
   SING_BOX_REF: v1.14.0-alpha.45
   GO_VERSION: "1.25.11"
   NDK_VERSION: "28.2.13676358"
-
-  # Gradle performance
-  GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8 -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
 
 jobs:
   # ============================================================
@@ -211,8 +208,7 @@ jobs:
         run: |
           ./gradlew help \
             --stacktrace \
-            --warning-mode all \
-            --build-cache
+            --warning-mode all
 
       # --------------------------------------------------------
       # Debug APKs
@@ -222,8 +218,6 @@ jobs:
           ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
         run: |
           ./gradlew \
-            --parallel \
-            --build-cache \
             :app:assemblePlayDebug \
             :app:assembleOtherDebug \
             :app:assembleOtherLegacyDebug
@@ -237,8 +231,6 @@ jobs:
           ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
         run: |
           ./gradlew \
-            --parallel \
-            --build-cache \
             :app:assemblePlayRelease \
             :app:assembleOtherRelease \
             :app:assembleOtherLegacyRelease
