@@ -65,7 +65,7 @@ fun getVersionProps(propName: String): String {
 }
 
 android {
-    namespace = "io.surprise.ciphertun"
+    ndkVersion = "28.2.13676358"
     compileSdk = 36
 
     ndkVersion = "28.0.13004108"
