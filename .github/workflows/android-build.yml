@@ -20,7 +20,17 @@ env:
   GO_VERSION: "1.25.11"
   NDK_VERSION: "28.2.13676358"
 
+  # Faster Gradle builds
+  GRADLE_OPTS: >-
+    -Dorg.gradle.jvmargs=-Xmx4g
+    -Dfile.encoding=UTF-8
+    -Dorg.gradle.parallel=true
+    -Dorg.gradle.caching=true
+    -Dorg.gradle.daemon=true
+    -Dkotlin.incremental=true
+
 jobs:
+
   # ============================================================
   # Build sing-box / libbox
   # ============================================================
@@ -29,13 +39,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      # --------------------------------------------------------
+      # Checkout sing-box
+      # --------------------------------------------------------
       - name: Checkout sing-box
         uses: actions/checkout@v4
         with:
           repository: SagerNet/sing-box
           ref: ${{ env.SING_BOX_REF }}
           path: sing-box
+          fetch-depth: 1
 
+      # --------------------------------------------------------
+      # Go
+      # --------------------------------------------------------
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -43,50 +61,86 @@ jobs:
           cache: true
           cache-dependency-path: sing-box/go.sum
 
+      # --------------------------------------------------------
+      # JDK
+      # --------------------------------------------------------
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
+      # --------------------------------------------------------
+      # Android SDK
+      # --------------------------------------------------------
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      # --------------------------------------------------------
+      # Android NDK
+      # --------------------------------------------------------
       - name: Install Android NDK
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
 
+      # --------------------------------------------------------
+      # Verify toolchain
+      # --------------------------------------------------------
       - name: Verify Android toolchain
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
         run: |
           java -version
           go version
+
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
           echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
+
           test -d "$ANDROID_NDK_HOME"
 
+      # --------------------------------------------------------
+      # Build libbox
+      # --------------------------------------------------------
       - name: Build libbox AAR
         working-directory: sing-box
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
         run: |
           make lib_install
-          make lib_android TAGS="with_quic,with_wireguard,with_utls,with_clash_api,with_gvisor,with_grpc,with_dhcp,with_tailscale,with_embedded_tor"
 
+          make lib_android \
+            TAGS="with_quic,with_wireguard,with_utls,with_clash_api,with_gvisor,with_grpc,with_dhcp,with_tailscale,with_embedded_tor"
+
+      # --------------------------------------------------------
+      # Locate libbox
+      # --------------------------------------------------------
       - name: Locate libbox artifacts
         working-directory: sing-box
         run: |
-          find . -maxdepth 3 -type f \
+          echo "=== Searching for AAR files ==="
+
+          find . -type f \
             \( -iname "libbox*.aar" -o -iname "*.aar" \) \
             -print
 
+      # --------------------------------------------------------
+      # Verify libbox
+      # --------------------------------------------------------
       - name: Verify libbox artifacts
         run: |
           test -f sing-box/libbox.aar
           test -f sing-box/libbox-legacy.aar
 
+          echo "libbox.aar:"
+          ls -lh sing-box/libbox.aar
+
+          echo "libbox-legacy.aar:"
+          ls -lh sing-box/libbox-legacy.aar
+
+      # --------------------------------------------------------
+      # Upload libbox
+      # --------------------------------------------------------
       - name: Upload libbox artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -95,6 +149,8 @@ jobs:
             sing-box/libbox.aar
             sing-box/libbox-legacy.aar
           if-no-files-found: error
+          compression-level: 0
+
 
   # ============================================================
   # Build CipherTun-VPN
@@ -105,23 +161,45 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       # --------------------------------------------------------
       # Source
       # --------------------------------------------------------
       - name: Checkout CipherTun-VPN
         uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 1
 
       # --------------------------------------------------------
       # Fetch third-party modules
       # --------------------------------------------------------
       - name: Fetch termux-app modules
-        run: bash scripts/setup-third-party.sh
+        run: |
+          bash scripts/setup-third-party.sh
 
+      # --------------------------------------------------------
+      # Download libbox artifacts
+      # --------------------------------------------------------
       - name: Download libbox artifacts
         uses: actions/download-artifact@v4
         with:
           name: libbox-aar
           path: app/libs
+
+      # --------------------------------------------------------
+      # Verify downloaded libbox
+      # --------------------------------------------------------
+      - name: Verify downloaded libbox
+        run: |
+          echo "=== app/libs ==="
+          find app/libs -maxdepth 2 -type f -print
+
+          test -f app/libs/libbox.aar
+          test -f app/libs/libbox-legacy.aar
+
+          ls -lh app/libs/libbox.aar
+          ls -lh app/libs/libbox-legacy.aar
 
       # --------------------------------------------------------
       # Java / Android
@@ -133,13 +211,144 @@ jobs:
           java-version: "17"
           cache: gradle
 
+      # --------------------------------------------------------
+      # Android SDK
+      # --------------------------------------------------------
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      # --------------------------------------------------------
+      # Android NDK
+      # --------------------------------------------------------
       - name: Install Android NDK
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager --install "ndk;${{ env.NDK_VERSION }}"
+
+      # --------------------------------------------------------
+      # Add missing Maven repositories
+      #
+      # Required by:
+      #
+      # libsu 6.0.0
+      # compose-markdown 0.5.8
+      # Xposed API 82
+      # --------------------------------------------------------
+      - name: Configure dependency repositories
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          candidates = [
+              Path("settings.gradle.kts"),
+              Path("settings.gradle"),
+          ]
+
+          settings = next((p for p in candidates if p.exists()), None)
+
+          if settings is None:
+              raise SystemExit("ERROR: settings.gradle.kts/settings.gradle not found")
+
+          text = settings.read_text()
+
+          repositories_to_add = [
+              'maven { url = uri("https://jitpack.io") }',
+              'maven { url = uri("https://artifactory.appodeal.com/appodeal-public/") }',
+          ]
+
+          # Kotlin DSL and Groovy DSL have slightly different syntax.
+          if settings.name.endswith(".kts"):
+              repo_lines = "\n".join(
+                  f"        {line}" for line in repositories_to_add
+              )
+          else:
+              repo_lines = """
+                  maven { url 'https://jitpack.io' }
+                  maven { url 'https://artifactory.appodeal.com/appodeal-public/' }
+              """.rstrip()
+
+          # Try to add repositories inside dependencyResolutionManagement.
+          drm_start = text.find("dependencyResolutionManagement")
+
+          if drm_start != -1:
+              repositories_start = text.find(
+                  "repositories",
+                  drm_start
+              )
+
+              if repositories_start != -1:
+                  open_brace = text.find("{", repositories_start)
+
+                  if open_brace != -1:
+                      depth = 0
+                      close_brace = None
+
+                      for i in range(open_brace, len(text)):
+                          if text[i] == "{":
+                              depth += 1
+                          elif text[i] == "}":
+                              depth -= 1
+                              if depth == 0:
+                                  close_brace = i
+                                  break
+
+                      if close_brace is not None:
+                          existing_block = text[
+                              repositories_start:close_brace
+                          ]
+
+                          missing = []
+
+                          if "jitpack.io" not in existing_block:
+                              missing.append(repositories_to_add[0])
+
+                          if "appodeal-public" not in existing_block:
+                              missing.append(repositories_to_add[1])
+
+                          if missing:
+                              if settings.name.endswith(".kts"):
+                                  insertion = "\n" + "\n".join(
+                                      f"        {line}" for line in missing
+                                  )
+                              else:
+                                  insertion = "\n" + "\n".join(
+                                      (
+                                          "        maven { "
+                                          f"url '{line.split('uri(\"')[1].split('\")')[0]}' "
+                                          "}"
+                                      )
+                                      for line in missing
+                                  )
+
+                              text = (
+                                  text[:close_brace]
+                                  + insertion
+                                  + "\n    "
+                                  + text[close_brace:]
+                              )
+
+          settings.write_text(text)
+
+          print("=== Updated repository configuration ===")
+          print(settings.read_text())
+          PY
+
+      # --------------------------------------------------------
+      # Gradle configuration
+      # --------------------------------------------------------
+      - name: Configure Gradle performance
+        run: |
+          mkdir -p ~/.gradle
+
+          cat > ~/.gradle/gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
+          org.gradle.parallel=true
+          org.gradle.caching=true
+          org.gradle.daemon=true
+          kotlin.incremental=true
+          kotlin.incremental.useClasspathSnapshot=true
+          org.gradle.configuration-cache=true
+          EOF
 
       # --------------------------------------------------------
       # Secrets
@@ -154,8 +363,12 @@ jobs:
           fi
 
           echo "$LOCAL_PROPERTIES" | base64 -d > local.properties
+
           test -s local.properties
 
+      # --------------------------------------------------------
+      # Release keystore
+      # --------------------------------------------------------
       - name: Write release keystore
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
@@ -166,6 +379,7 @@ jobs:
           fi
 
           echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > app/release.keystore
+
           test -s app/release.keystore
 
       # --------------------------------------------------------
@@ -174,19 +388,19 @@ jobs:
       - name: Verify Android build configuration
         run: |
           echo "=== Gradle ==="
-          grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties
+          grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties || true
 
           echo "=== AGP ==="
-          grep "com.android.application" build.gradle.kts
+          grep "com.android.application" build.gradle.kts || true
 
           echo "=== App namespace ==="
-          grep -n "namespace" app/build.gradle.kts
+          grep -n "namespace" app/build.gradle.kts || true
 
           echo "=== App NDK ==="
-          grep -n "ndkVersion" app/build.gradle.kts
+          grep -n "ndkVersion" app/build.gradle.kts || true
 
           echo "=== Project NDK ==="
-          grep -n "ndkVersion" gradle.properties
+          grep -n "ndkVersion" gradle.properties || true
 
           echo "=== Android SDK ==="
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
@@ -194,21 +408,35 @@ jobs:
           echo "=== Android NDK ==="
           echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}"
 
+          echo "=== Dependency repositories ==="
+          grep -RniE \
+            "jitpack|appodeal-public" \
+            settings.gradle* \
+            build.gradle* \
+            app/build.gradle* \
+            2>/dev/null || true
+
           test -d "$ANDROID_SDK_ROOT/ndk/${{ env.NDK_VERSION }}"
 
       # --------------------------------------------------------
-      # Gradle
+      # Grant execute permission
       # --------------------------------------------------------
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        run: |
+          chmod +x gradlew
 
+      # --------------------------------------------------------
+      # Validate Gradle configuration
+      # --------------------------------------------------------
       - name: Validate Gradle configuration
         env:
           ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
         run: |
           ./gradlew help \
             --stacktrace \
-            --warning-mode all
+            --warning-mode all \
+            --build-cache \
+            --configuration-cache
 
       # --------------------------------------------------------
       # Debug APKs
@@ -220,7 +448,10 @@ jobs:
           ./gradlew \
             :app:assemblePlayDebug \
             :app:assembleOtherDebug \
-            :app:assembleOtherLegacyDebug
+            :app:assembleOtherLegacyDebug \
+            --build-cache \
+            --configuration-cache \
+            --parallel
 
       # --------------------------------------------------------
       # Release APKs
@@ -233,7 +464,23 @@ jobs:
           ./gradlew \
             :app:assemblePlayRelease \
             :app:assembleOtherRelease \
-            :app:assembleOtherLegacyRelease
+            :app:assembleOtherLegacyRelease \
+            --build-cache \
+            --configuration-cache \
+            --parallel
+
+      # --------------------------------------------------------
+      # List APKs
+      # --------------------------------------------------------
+      - name: Locate APKs
+        run: |
+          echo "=== APK files ==="
+
+          find app/build/outputs/apk \
+            -type f \
+            -name "*.apk" \
+            -print \
+            -exec ls -lh {} \;
 
       # --------------------------------------------------------
       # Artifacts
@@ -244,3 +491,4 @@ jobs:
           name: ciphertun-vpn-apks
           path: app/build/outputs/apk/**/*.apk
           if-no-files-found: error
+          compression-level: 0
