@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.nekohasekai.sfa.bg;
+package io.surprise.ciphertun.bg;
 
 import android.os.Binder;
 import android.os.IBinder;

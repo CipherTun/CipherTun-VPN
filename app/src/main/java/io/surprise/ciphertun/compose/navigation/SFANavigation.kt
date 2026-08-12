@@ -286,9 +286,8 @@ fun SFANavHost(
 
         composable(Screen.Tools.route) {
             val tailscaleViewModel: TailscaleStatusViewModel = tailscaleStatusViewModel ?: viewModel()
-            val sshSharedViewModel: TailscaleSSHSharedViewModel = tailscaleSSHSharedViewModel ?: viewModel()
-            val usbIPViewModel: USBIPStatusViewModel = usbIPStatusViewModel ?: viewModel()
-            ToolsScreen(navController = navController, serviceStatus = serviceStatus, tailscaleViewModel = tailscaleViewModel, sshSharedViewModel = sshSharedViewModel, usbIPViewModel = usbIPViewModel)
+            val usbIPViewModel: USBIPStatusViewModel = usbIPViewModel ?: viewModel()
+            ToolsScreen(navController = navController, serviceStatus = serviceStatus, tailscaleViewModel = tailscaleViewModel, usbIPViewModel = usbIPViewModel)
         }
 
         // Tools subscreens with slide animations

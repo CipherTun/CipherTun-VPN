@@ -26,12 +26,16 @@ for file in \
 do
     if [ -f "$file" ]; then
         sed -i \
-            "s/getDefaultProguardFile('proguard-android.txt')/getDefaultProguardFile('proguard-android-optimize.txt')/g" \
+            -e "s/getDefaultProguardFile('proguard-android.txt')/getDefaultProguardFile('proguard-android-optimize.txt')/g" \
+            -e 's/getDefaultProguardFile("proguard-android.txt")/getDefaultProguardFile("proguard-android-optimize.txt")/g' \
             "$file"
     fi
 done
 
-if grep -R "getDefaultProguardFile('proguard-android.txt')" \
+if grep -R -F "getDefaultProguardFile('proguard-android.txt')" \
+    "$TARGET_DIR/terminal-emulator" \
+    "$TARGET_DIR/terminal-view" 2>/dev/null || \
+   grep -R -F 'getDefaultProguardFile("proguard-android.txt")' \
     "$TARGET_DIR/terminal-emulator" \
     "$TARGET_DIR/terminal-view" 2>/dev/null
 then

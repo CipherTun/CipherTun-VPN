@@ -1,4 +1,4 @@
-package io.nekohasekai.sfa.bg;
+package io.surprise.ciphertun.bg;
 
 import android.os.Parcel;
 import android.os.Parcelable;
