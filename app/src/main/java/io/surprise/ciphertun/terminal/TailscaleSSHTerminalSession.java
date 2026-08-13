@@ -1,4 +1,4 @@
-package io.nekohasekai.sfa.terminal;
+package io.surprise.ciphertun.terminal;
 
 import android.os.Handler;
 import android.os.Looper;

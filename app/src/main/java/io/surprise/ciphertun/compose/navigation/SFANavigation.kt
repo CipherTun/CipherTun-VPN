@@ -286,7 +286,7 @@ fun SFANavHost(
 
         composable(Screen.Tools.route) {
             val tailscaleViewModel: TailscaleStatusViewModel = tailscaleStatusViewModel ?: viewModel()
-            val usbIPViewModel: USBIPStatusViewModel = usbIPViewModel ?: viewModel()
+            val usbIPViewModel: USBIPStatusViewModel = usbIPStatusViewModel ?: viewModel()
             ToolsScreen(navController = navController, serviceStatus = serviceStatus, tailscaleViewModel = tailscaleViewModel, usbIPViewModel = usbIPViewModel)
         }
 
