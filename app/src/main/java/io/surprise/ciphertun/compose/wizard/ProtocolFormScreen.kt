@@ -443,9 +443,9 @@ private fun DropdownField(
             readOnly = true,
             label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchorCompat()
+            modifier = menuAnchorCompat(
+                Modifier.fillMaxWidth()
+            )
         )
         DropdownMenu(
             expanded = expanded,

@@ -121,7 +121,16 @@ fun LazyItemScope.animateItemCompat(
  * otherLegacy-paired Material3 version — only the newer BOM has it. Falls
  * back to the older, deprecated-but-still-functional no-arg `menuAnchor()`
  * overload, which every Material3 version supports.
+ *
+ * The real `menuAnchor()` is a *member-extension*: a member of
+ * `ExposedDropdownMenuBoxScope` that's also an extension on `Modifier`, so
+ * it needs both receivers at once. Takes `modifier` as a plain parameter
+ * (rather than chaining `Modifier.menuAnchorCompat()`) so both receivers
+ * are satisfied correctly — call as `menuAnchorCompat(Modifier.foo())`
+ * from inside an `ExposedDropdownMenuBox { }` content lambda.
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Suppress("DEPRECATION")
-fun androidx.compose.material3.ExposedDropdownMenuBoxScope.menuAnchorCompat(): Modifier =
-    Modifier.menuAnchor()
+fun androidx.compose.material3.ExposedDropdownMenuBoxScope.menuAnchorCompat(
+    modifier: Modifier,
+): Modifier = modifier.menuAnchor()
