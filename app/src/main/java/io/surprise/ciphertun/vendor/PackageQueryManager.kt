@@ -7,8 +7,6 @@ import io.surprise.ciphertun.bg.RootClient
 import io.surprise.ciphertun.database.Settings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import rikka.shizuku.Shizuku
-import rikka.shizuku.ShizukuBinderWrapper
 
 /**
  * Dispatches "list installed packages" requests (used by the per-app proxy
@@ -18,12 +16,13 @@ import rikka.shizuku.ShizukuBinderWrapper
  * PackageManager query if neither is available.
  *
  * Root queries are proxied through the existing [RootClient] root service.
- * Shizuku queries reuse the same `IPackageManager` reflection technique as
- * [PrivilegedServiceUtils], but transacted over a binder wrapped with
- * [ShizukuBinderWrapper] so the call is routed through the Shizuku server
- * process instead of failing locally for lack of permission.
+ * Shizuku queries go through [ShizukuBridge] (flavor-specific — see that
+ * file) and the same `IPackageManager` reflection technique as
+ * [PrivilegedServiceUtils], transacted over a Shizuku-wrapped binder.
  */
 object PackageQueryManager {
+
+    private val bridge: ShizukuBridge by lazy { createShizukuBridge() }
 
     /** Package query mode selection is only meaningful once package
      * visibility filtering exists to work around (Android 11 / API 30+). */
@@ -39,70 +38,54 @@ object PackageQueryManager {
     val shizukuPermissionGranted: StateFlow<Boolean> = _shizukuPermissionGranted
 
     private const val SHIZUKU_REQUEST_CODE = 24_231
-
-    private val binderReceivedListener = Shizuku.OnBinderReceivedListener {
-        _shizukuBinderReady.value = true
-        refreshShizukuPermissionState()
-    }
-
-    private val binderDeadListener = Shizuku.OnBinderDeadListener {
-        _shizukuBinderReady.value = false
-        _shizukuPermissionGranted.value = false
-    }
-
-    private val permissionResultListener =
-        Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
-            if (requestCode == SHIZUKU_REQUEST_CODE) {
-                _shizukuPermissionGranted.value =
-                    grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED
-            }
-        }
-
     private var listenersRegistered = false
 
     /** Must be called from a lifecycle-aware scope (e.g. `DisposableEffect`)
      * before reading Shizuku state; pair with [unregisterListeners]. */
     fun registerListeners() {
-        if (listenersRegistered) return
+        if (!bridge.isSupported() || listenersRegistered) return
         listenersRegistered = true
-        Shizuku.addBinderReceivedListenerSticky(binderReceivedListener)
-        Shizuku.addBinderDeadListener(binderDeadListener)
-        Shizuku.addRequestPermissionResultListener(permissionResultListener)
+        bridge.addListeners(
+            onBinderReceived = {
+                _shizukuBinderReady.value = true
+                refreshShizukuPermissionState()
+            },
+            onBinderDead = {
+                _shizukuBinderReady.value = false
+                _shizukuPermissionGranted.value = false
+            },
+            onPermissionResult = { requestCode, granted ->
+                if (requestCode == SHIZUKU_REQUEST_CODE) {
+                    _shizukuPermissionGranted.value = granted
+                }
+            },
+        )
     }
 
     fun unregisterListeners() {
         if (!listenersRegistered) return
         listenersRegistered = false
-        Shizuku.removeBinderReceivedListener(binderReceivedListener)
-        Shizuku.removeBinderDeadListener(binderDeadListener)
-        Shizuku.removeRequestPermissionResultListener(permissionResultListener)
+        bridge.removeListeners()
     }
 
     /** Re-derives current Shizuku install/binder/permission state on demand
      * (e.g. after returning from the Shizuku manager app). */
     fun refreshShizukuState() {
         _shizukuInstalled.value = isShizukuAppInstalled()
-        _shizukuBinderReady.value = try {
-            Shizuku.pingBinder()
-        } catch (_: Throwable) {
-            false
-        }
+        _shizukuBinderReady.value = bridge.pingBinder()
         refreshShizukuPermissionState()
     }
 
-    fun isShizukuAvailable(): Boolean = try {
-        Shizuku.pingBinder() && !Shizuku.isPreV11()
-    } catch (_: Throwable) {
-        false
-    }
+    fun isShizukuAvailable(): Boolean =
+        bridge.isSupported() && bridge.pingBinder() && !bridge.isPreV11()
 
     fun requestShizukuPermission() {
         if (!isShizukuAvailable()) return
-        if (Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+        if (bridge.checkSelfPermissionGranted()) {
             _shizukuPermissionGranted.value = true
             return
         }
-        Shizuku.requestPermission(SHIZUKU_REQUEST_CODE)
+        bridge.requestPermission(SHIZUKU_REQUEST_CODE)
     }
 
     suspend fun checkRootAvailable(): Boolean = RootClient.checkRootAvailable()
@@ -145,10 +128,10 @@ object PackageQueryManager {
 
     private fun queryViaShizuku(flags: Int): List<PackageInfo>? {
         if (!isShizukuAvailable()) return null
-        if (Shizuku.checkSelfPermission() != android.content.pm.PackageManager.PERMISSION_GRANTED) return null
+        if (!bridge.checkSelfPermissionGranted()) return null
         return try {
             val rawBinder = SystemServiceHelperCompat.getSystemService("package") ?: return null
-            val wrapped: IBinder = ShizukuBinderWrapper(rawBinder)
+            val wrapped: IBinder = bridge.wrapBinder(rawBinder)
             ShizukuIPackageManagerReflection.getInstalledPackages(wrapped, flags)
         } catch (_: Throwable) {
             null
@@ -170,12 +153,8 @@ object PackageQueryManager {
     }
 
     private fun refreshShizukuPermissionState() {
-        _shizukuPermissionGranted.value = try {
-            Shizuku.pingBinder() &&
-                Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED
-        } catch (_: Throwable) {
-            false
-        }
+        _shizukuPermissionGranted.value =
+            bridge.pingBinder() && bridge.checkSelfPermissionGranted()
     }
 }
 
@@ -185,7 +164,7 @@ object PackageQueryManager {
  * because that object always fetches its own (unwrapped) binder via
  * [SystemServiceHelperCompat], which only works when the calling process
  * itself is already privileged (e.g. inside the root service). Here the
- * binder is supplied externally, already wrapped by [ShizukuBinderWrapper].
+ * binder is supplied externally, already wrapped for Shizuku transacting.
  */
 private object ShizukuIPackageManagerReflection {
     private val stubClass by lazy { Class.forName("android.content.pm.IPackageManager\$Stub") }

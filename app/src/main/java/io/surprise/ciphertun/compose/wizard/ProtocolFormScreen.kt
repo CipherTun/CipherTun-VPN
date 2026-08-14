@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import io.surprise.ciphertun.compat.menuAnchorCompat
 import io.surprise.ciphertun.config.OutboundProfile
 import io.surprise.ciphertun.config.ProfileWizardRepository
 import io.surprise.ciphertun.config.ProtocolType
@@ -444,7 +445,7 @@ private fun DropdownField(
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable)
+                .menuAnchorCompat()
         )
         DropdownMenu(
             expanded = expanded,

@@ -75,37 +75,73 @@ inferred from call sites rather than an original implementation.
 AGP 9.4 itself is still in preview (alpha) upstream — that's a real,
 independent risk regardless of anything in this patch.
 
-## Round 2 — deeper file-by-file review (per your request)
+## Round 3 — real CI errors from your first AGP-9.4 build attempt
 
-Went back through every file that differed between original and "fixed" and
-checked each individually instead of assuming the base was right by default:
+The build got much further this time and failed on real, specific errors
+instead of the earlier structural ones. Root cause behind almost all of
+them: **`otherLegacy` compiles against a much older Compose BOM
+(`2025.01.00`) than `play`/`other` (`2026.02.00`)** — see `app/build.gradle.kts`.
+Shared code in `src/main` has to compile against *both*, and several things
+I wrote only existed in the newer one.
 
-- **`Vendor.kt` — genuinely missing, now added.** `Application.kt` and
-  `BoxService.kt` both `import io.surprise.ciphertun.vendor.Vendor` and call
-  `Vendor.isPerAppProxyAvailable()`, but the `Vendor` object itself didn't
-  exist in the original at all — same class of bug as `PackageQueryManager`.
-  "fixed"'s implementation correctly satisfies every member of
-  `VendorInterface`, so it was adopted as-is.
+- **`ComposeCompat.kt` `layout {}` helper** — I'd written
+  `androidx.compose.ui.layout.layout { ... }` as if it were a free function;
+  it's actually a `Modifier` extension and can't be called that way. Rewrote.
+- **`animateItemCompat` — wrong receiver entirely.** I'd assumed the
+  `DashboardSettingsBottomSheet.kt` drag-reorder list was a manual
+  `Box`-based implementation with no `LazyItemScope` available, so I wrote a
+  custom `Modifier` extension with my own placement-animation logic. Wrong —
+  it's actually called inside a `LazyColumn`'s `itemsIndexed {}` block, so
+  `LazyItemScope` *is* available. Rewrote as a `LazyItemScope` extension
+  that just delegates to the real, built-in `animateItem()`. Much simpler,
+  and removes all the custom animation code that was solving a problem that
+  didn't exist.
+- **`rememberOverscrollEffect()` is `internal`** in this project's Compose
+  Foundation version — app code can't call it. Now always returns `null`
+  (every call site already treats that as "use default overscroll").
+- **`Modifier.verticalScroll(state, overscrollEffect)`** — that 2-arg
+  overload doesn't exist on the older BOM. Now ignores `overscrollEffect`
+  entirely and calls the 1-arg form.
+- **`WindowSizeClass.isWidthAtLeastBreakpoint()` / `WIDTH_DP_MEDIUM_LOWER_BOUND`**
+  — newer-BOM-only breakpoint API. Replaced with a plain
+  `LocalConfiguration.current.screenWidthDp >= 600` check, which is
+  version-agnostic and has been stable Compose API for years. This changed
+  `isWidthAtLeastBreakpointCompat` from a `WindowSizeClass` extension to a
+  plain `@Composable` function, so the 3 call sites (`MainActivity.kt`,
+  `QRSDialog.kt`, `LogScreen.kt`) had the `windowSizeClass.` receiver prefix
+  dropped.
+- **`ExposedDropdownMenuAnchorType`** — same BOM-skew pattern, newer-BOM-only
+  enum. Added `menuAnchorCompat()` using the older, deprecated-but-still-
+  supported no-arg `menuAnchor()` overload (Google's own docs note it's
+  "maintained for binary compatibility").
+- **`PackageQueryManager.kt` — `rikka`/`Shizuku` unresolved on `otherLegacy`.**
+  This one wasn't a mistake in the code itself so much as a wrong dependency
+  assumption: `dev.rikka.shizuku:api` is deliberately scoped to `play`/`other`
+  only (API 23+, see the comment above it in `app/build.gradle.kts`) —
+  `otherLegacy` (API 21+) was never meant to have it. My `PackageQueryManager.kt`
+  lives in shared `src/main` and imported `rikka.shizuku.*` directly, which
+  can never work for `otherLegacy`. Fixed properly rather than papered over:
+  added `vendor/ShizukuBridge.kt` (a dependency-free interface, in `src/main`)
+  with two implementations — a real one in `src/minApi23/java` (merged into
+  `play`+`other`, already existing infrastructure in this project's own
+  `sourceSets` block, just previously unused) and a no-op stub in
+  `src/minApi21/java` (merged into `otherLegacy`). `PackageQueryManager.kt`
+  now only talks to the interface, never `rikka.shizuku.*` directly.
 
-- **`applicationVariants`/`BaseVariantOutputImpl` → `androidComponents`/`onVariants`
-  — real AGP 9.4 compatibility fix, now adopted.** The original's APK-renaming
-  logic cast to `com.android.build.gradle.internal.api.BaseVariantOutputImpl`,
-  an *internal* AGP implementation class that has broken across AGP major
-  versions before and is a real risk on AGP 9.4. "fixed" migrated this to the
-  public Variant API (`androidComponents { onVariants { ... } }`), which is
-  correct and necessary — this is very likely one of the things that let
-  "fixed" get further in the build than the plain original would have.
+### ⚠️ One thing I can't verify from here — please check
 
-- Ran a systematic scan (every `io.surprise.ciphertun.*` import checked
-  against every declared symbol in the codebase) to look for other
-  Vendor.kt-style "imported but never defined" gaps. No further ones found —
-  everything else the scan flagged was a false positive from extension
-  functions/vals my scanner's regex couldn't parse (verified manually).
-- Confirmed zero remaining references anywhere to the old `io.nekohasekai.sfa`
-  app package (the still-present `io.nekohasekai.libbox` references are the
-  legitimate upstream sing-box AAR package, not part of the rebrand, and are
-  correct/expected).
-- JDK 17: already correctly set via `sourceCompatibility`/`targetCompatibility`
-  = `JavaVersion.VERSION_17` and `jvmTarget.set(JvmTarget.JVM_17)` in the
-  original — untouched, confirmed correct.
-- Workflow branch trigger: restored to `dev` per your correction.
+Your `git status` before this push showed an **untracked
+`app/src/main/java/io/surprise/ciphertun/compat/WindowSizeClassCompat.kt`**
+sitting in your local tree already, separate from the `ComposeCompat.kt` I
+provide. My `ComposeCompat.kt` also declares `object WindowSizeClassCompat`
+in the same package (`io.surprise.ciphertun.compat`). If that other file
+*also* declares an object with that name, Kotlin will fail with a
+redeclaration error the moment both are present. I have no visibility into
+that file's contents — please open it and check, or delete it if it's stale
+scratch work from an earlier session, before your next build.
+
+### Still unresolved from before this run
+- The `git push` was rejected (`fetch first` — remote `dev` has commits your
+  local clone didn't have) right before you pasted this CI log. That was
+  never resolved as far as I can tell — you'll need to reconcile before
+  pushing this round's fixes. See the reply for the exact commands.
