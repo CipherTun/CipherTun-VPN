@@ -133,9 +133,18 @@ jobs:
           retention-days: 7
 
   build-apk:
-    name: Build CipherTun APKs
+    name: APK ${{ matrix.abi }}
     needs: merge-libbox
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        abi:
+          - armeabi-v7a
+          - arm64-v8a
+          - x86
+          - x86_64
 
     steps:
       - name: Checkout CipherTun VPN
@@ -150,93 +159,80 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Verify Android SDK before compilation
+      - name: Verify Android SDK
         run: |
           set -eux
           SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
-          echo "SDK=$SDK"
-          test -d "$SDK"
           test -d "$SDK/platforms/android-37.1"
           test -d "$SDK/build-tools/37.0.0"
           test -d "$SDK/ndk/${NDK_VERSION}"
-          echo "=== Platforms ==="
-          ls -1 "$SDK/platforms"
-          echo "=== Build Tools ==="
-          ls -1 "$SDK/build-tools"
-          echo "=== NDK ==="
-          ls -1 "$SDK/ndk"
+          export ANDROID_NDK_HOME="$SDK/ndk/${NDK_VERSION}"
+          "$ANDROID_NDK_HOME/ndk-build" --version | head -n 2
 
-      - name: Download merged libbox AARs
+      - name: Download merged libbox
         uses: actions/download-artifact@v7
         with:
           name: libbox-aars
           path: app/libs
 
-      - name: Verify libbox before Gradle
+      - name: Verify libbox
         run: |
           set -eux
           test -s app/libs/libbox.aar
           test -s app/libs/libbox-legacy.aar
           ls -lh app/libs/libbox*.aar
 
-      - name: Setup Gradle for clean validation
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-disabled: true
 
-      - name: Fast Gradle configuration check
+      - name: Configure ABI
+        env:
+          TARGET_ABI: ${{ matrix.abi }}
         run: |
           set -eux
-          ./gradlew :app:help --no-daemon --stacktrace
+          sed -i '/^    splits {/,/^    }$/c\
+    splits {\
+        abi {\
+            isEnable = true\
+            isUniversalApk = false\
+            reset()\
+            include("'"$TARGET_ABI"'")\
+        }\
+    }' app/build.gradle.kts
 
-      - name: Decode signing keystore
-        env:
-          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-        run: |
-          set -eux
-          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
-            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > app/release.keystore
-            test -s app/release.keystore
-          fi
+          grep -n -A8 -B2 'splits' app/build.gradle.kts
 
-      - name: Build all Android ABIs + universal APK
-        env:
-          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      - name: Build ${{ matrix.abi }}
         run: |
           set -eux
           export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}"
           export PATH="$ANDROID_NDK_HOME:$PATH"
-          test -d "$ANDROID_NDK_HOME"
-          test -x "$ANDROID_NDK_HOME/ndk-build"
-          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
-          "$ANDROID_NDK_HOME/ndk-build" --version | head -n 2
+
           ./gradlew \
             :app:assembleOtherRelease \
-            :app:assembleOtherLegacyRelease \
-            --parallel \
             --no-build-cache \
             --no-daemon \
             --stacktrace
 
-      - name: Verify APK outputs
+      - name: Collect ${{ matrix.abi }}
         run: |
           set -eux
-          find app/build/outputs/apk -type f -name '*.apk' -print | sort
-          APK_COUNT="$(find app/build/outputs/apk -type f -name '*.apk' | wc -l)"
-          echo "APK count: $APK_COUNT"
-          test "$APK_COUNT" -ge 2
-          echo "=== APK filenames ==="
-          find app/build/outputs/apk -type f -name '*.apk' -printf '%f\n' | sort
-          echo "=== Version ==="
-          cat version.properties
+          mkdir -p "abi-apks/${{ matrix.abi }}"
 
-      - name: Remove signing material
-        if: always()
-        run: rm -f app/release.keystore
+          find app/build/outputs/apk \
+            -type f \
+            -name "*.apk" \
+            -exec cp {} "abi-apks/${{ matrix.abi }}/" \;
 
-      - name: Upload APKs
+          test -n "$(find "abi-apks/${{ matrix.abi }}" -name "*.apk" -print -quit)"
+
+          ls -lh "abi-apks/${{ matrix.abi }}"
+
+      - name: Upload ${{ matrix.abi }} APK
         uses: actions/upload-artifact@v6
         with:
-          name: CipherTun-VPN-v1.15.0-alpha.6
-          path: app/build/outputs/apk/**/*.apk
+          name: CipherTun-VPN-${{ matrix.abi }}
+          path: abi-apks/${{ matrix.abi }}/*.apk
           retention-days: 30
