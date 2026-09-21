@@ -77,7 +77,7 @@ import io.surprise.ciphertun.compose.navigation.ProfileRoutes
 import io.surprise.ciphertun.compose.screen.configuration.ProfileImportHandler
 import io.surprise.ciphertun.compose.screen.dashboard.DashboardViewModel
 import io.surprise.ciphertun.compose.screen.qrscan.QRScanResult
-import io.surprise.ciphertun.compose.screen.qrscan.QRScanSheet
+import io.surprise.ciphertun.compose.component.qr.QRScanSheet
 import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.compose.util.QRCodeGenerator

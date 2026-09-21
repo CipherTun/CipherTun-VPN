@@ -404,7 +404,7 @@ private fun ActiveConfigSummary(
                     )
                 }
                 Icon(
-                    imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Default.KeyboardArrowRight,
+                    imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

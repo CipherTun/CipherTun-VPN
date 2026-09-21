@@ -200,6 +200,7 @@ jobs:
       - name: Build all Android ABIs + universal APK
         env:
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
         run: |
           set -eux
           ./gradlew \
