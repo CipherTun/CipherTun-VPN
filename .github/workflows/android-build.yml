@@ -2,18 +2,19 @@ name: Build CipherTun VPN
 
 on:
   push:
-    branches: [dev]
+    branches:
+      - dev
   workflow_dispatch:
     inputs:
       sing_box_ref:
-        description: "sing-box ref (default: v1.15.0-alpha.6)"
+        description: sing-box ref
         required: false
-        default: "v1.15.0-alpha.6"
+        default: v1.15.0-alpha.6
 
 env:
   SING_BOX_REF: ${{ inputs.sing_box_ref || 'v1.15.0-alpha.6' }}
-  GO_VERSION: "1.26.8"
-  NDK_VERSION: "28.2.13676358"
+  GO_VERSION: '1.26.8'
+  NDK_VERSION: '28.2.13676358'
 
 jobs:
   build-libbox:
@@ -22,10 +23,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go_arch: [386, amd64, arm, arm64]
+        go_arch:
+          - 386
+          - amd64
+          - arm
+          - arm64
 
     steps:
-      - name: Checkout sing-box core
+      - name: Checkout sing-box
         uses: actions/checkout@v6
         with:
           repository: SagerNet/sing-box
@@ -43,33 +48,34 @@ jobs:
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
-      - name: Verify Android toolchain
+      - name: Verify Android NDK
         run: |
           set -eux
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          test -d "$ANDROID_SDK_ROOT"
           test -d "$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}"
           "$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}/ndk-build" --version | head -n 2
 
-      - name: Build libbox AARs
+      - name: Build libbox AAR
         working-directory: sing-box
         run: |
           set -euxo pipefail
           export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}"
+
           make lib_install
+
           go run ./cmd/internal/build_libbox \
             -target android \
             -platform android/${{ matrix.go_arch }}
+
           test -s libbox.aar
           test -s libbox-legacy.aar
-          mkdir -p ../libbox-out
-          cp libbox.aar ../libbox-out/libbox.aar
-          cp libbox-legacy.aar ../libbox-out/libbox-legacy.aar
 
-      - name: Upload arch AARs
+          mkdir -p ../libbox-out
+          cp libbox.aar ../libbox-out/
+          cp libbox-legacy.aar ../libbox-out/
+
+      - name: Upload libbox
         uses: actions/upload-artifact@v6
         with:
           name: libbox-${{ matrix.go_arch }}
@@ -82,7 +88,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout sing-box core
+      - name: Checkout sing-box
         uses: actions/checkout@v6
         with:
           repository: SagerNet/sing-box
@@ -96,34 +102,38 @@ jobs:
           cache: true
           cache-dependency-path: sing-box/go.sum
 
-      - name: Download arch AARs
+      - name: Download libbox AARs
         uses: actions/download-artifact@v7
         with:
           pattern: libbox-*
           path: sing-box/libbox-inputs
           merge-multiple: false
 
-      - name: Verify downloaded AARs
+      - name: Verify AARs
         run: |
           set -eux
-          test "$(find sing-box/libbox-inputs -type f -name 'libbox.aar' | wc -l)" -eq 4
-          test "$(find sing-box/libbox-inputs -type f -name 'libbox-legacy.aar' | wc -l)" -eq 4
+          test "$(find sing-box/libbox-inputs -name libbox.aar | wc -l)" -eq 4
+          test "$(find sing-box/libbox-inputs -name libbox-legacy.aar | wc -l)" -eq 4
 
-      - name: Merge all ABIs
+      - name: Merge AARs
         working-directory: sing-box
         run: |
           set -euxo pipefail
+
           go run ./cmd/internal/merge_aar \
             -output libbox.aar \
             libbox-inputs/*/libbox.aar
+
           go run ./cmd/internal/merge_aar \
             -output libbox-legacy.aar \
             libbox-inputs/*/libbox-legacy.aar
+
           test -s libbox.aar
           test -s libbox-legacy.aar
+
           mkdir -p ../merged-aar
-          cp libbox.aar ../merged-aar/libbox.aar
-          cp libbox-legacy.aar ../merged-aar/libbox-legacy.aar
+          cp libbox.aar ../merged-aar/
+          cp libbox-legacy.aar ../merged-aar/
 
       - name: Upload merged AARs
         uses: actions/upload-artifact@v6
@@ -136,9 +146,9 @@ jobs:
     name: APK ${{ matrix.abi }}
     needs: merge-libbox
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
-      max-parallel: 4
       matrix:
         abi:
           - armeabi-v7a
@@ -147,25 +157,29 @@ jobs:
           - x86_64
 
     steps:
-      - name: Checkout CipherTun VPN
+      - name: Checkout CipherTun
         uses: actions/checkout@v6
         with:
-          submodules: recursive
           fetch-depth: 1
+          submodules: recursive
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: '17'
 
-      - name: Verify Android SDK
+      - name: Verify Android toolchain
         run: |
           set -eux
+
           SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+
+          test -d "$SDK"
           test -d "$SDK/platforms/android-37.1"
           test -d "$SDK/build-tools/37.0.0"
           test -d "$SDK/ndk/${NDK_VERSION}"
+
           export ANDROID_NDK_HOME="$SDK/ndk/${NDK_VERSION}"
           "$ANDROID_NDK_HOME/ndk-build" --version | head -n 2
 
@@ -175,38 +189,38 @@ jobs:
           name: libbox-aars
           path: app/libs
 
-      - name: Verify libbox
+      - name: Verify merged libbox
         run: |
           set -eux
           test -s app/libs/libbox.aar
           test -s app/libs/libbox-legacy.aar
-          ls -lh app/libs/libbox*.aar
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-disabled: true
+          ls -lh app/libs/
 
       - name: Configure ABI
         env:
           TARGET_ABI: ${{ matrix.abi }}
         run: |
           set -eux
-          sed -i '/^    splits {/,/^    }$/c\
-    splits {\
-        abi {\
-            isEnable = true\
-            isUniversalApk = false\
-            reset()\
-            include("'"$TARGET_ABI"'")\
-        }\
-    }' app/build.gradle.kts
 
-          grep -n -A8 -B2 'splits' app/build.gradle.kts
+          sed -i '/^[[:space:]]*splits[[:space:]]*{/,/^[[:space:]]*}[[:space:]]*$/d' app/build.gradle.kts
 
-      - name: Build ${{ matrix.abi }}
+          sed -i "/^[[:space:]]*compileOptions[[:space:]]*{/i\\
+    splits {\\
+        abi {\\
+            isEnable = true\\
+            isUniversalApk = false\\
+            reset()\\
+            include(\"${TARGET_ABI}\")\\
+        }\\
+    }\\
+" app/build.gradle.kts
+
+          grep -n -A9 -B2 'splits' app/build.gradle.kts
+
+      - name: Build ABI APK
         run: |
           set -eux
+
           export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}"
           export PATH="$ANDROID_NDK_HOME:$PATH"
 
@@ -216,21 +230,24 @@ jobs:
             --no-daemon \
             --stacktrace
 
-      - name: Collect ${{ matrix.abi }}
+      - name: Collect APK
+        env:
+          TARGET_ABI: ${{ matrix.abi }}
         run: |
           set -eux
-          mkdir -p "abi-apks/${{ matrix.abi }}"
+
+          mkdir -p "abi-apks/${TARGET_ABI}"
 
           find app/build/outputs/apk \
             -type f \
-            -name "*.apk" \
-            -exec cp {} "abi-apks/${{ matrix.abi }}/" \;
+            -name '*.apk' \
+            -exec cp {} "abi-apks/${TARGET_ABI}/" \;
 
-          test -n "$(find "abi-apks/${{ matrix.abi }}" -name "*.apk" -print -quit)"
+          test -n "$(find "abi-apks/${TARGET_ABI}" -name '*.apk' -print -quit)"
 
-          ls -lh "abi-apks/${{ matrix.abi }}"
+          ls -lh "abi-apks/${TARGET_ABI}"
 
-      - name: Upload ${{ matrix.abi }} APK
+      - name: Upload ABI APK
         uses: actions/upload-artifact@v6
         with:
           name: CipherTun-VPN-${{ matrix.abi }}
