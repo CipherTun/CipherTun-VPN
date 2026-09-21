@@ -49,6 +49,7 @@ import io.nekohasekai.libbox.Libbox
 import io.surprise.ciphertun.BuildConfig
 import io.surprise.ciphertun.R
 import io.surprise.ciphertun.bg.CrashReportManager
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import kotlinx.coroutines.launch
 import java.text.DateFormat
@@ -170,11 +171,14 @@ fun CrashReportListScreen(navController: NavController) {
             CircularProgressIndicator()
         }
     } else {
+        val scaffoldPadding = LocalScaffoldPadding.current
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
                 .verticalScroll(rememberScrollState())
+                .padding(scaffoldPadding)
                 .padding(vertical = 8.dp),
         ) {
             Text(

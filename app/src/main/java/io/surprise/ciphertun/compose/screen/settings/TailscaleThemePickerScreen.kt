@@ -3,6 +3,7 @@ package io.surprise.ciphertun.compose.screen.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -10,13 +11,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -31,10 +32,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import io.github.sagernet.libghostty.extras.GhosttyThemeStore
 import io.surprise.ciphertun.R
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.database.Settings
-import io.surprise.ciphertun.terminal.TerminalColorSchemeLoader
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,16 +51,26 @@ fun TailscaleThemePickerScreen(
     var selectedTheme by remember {
         mutableStateOf(if (isDark) Settings.tailscaleSSHDarkTheme else Settings.tailscaleSSHLightTheme)
     }
-    var schemes by remember { mutableStateOf<List<String>>(emptyList()) }
+    var themes by remember { mutableStateOf<List<String>>(emptyList()) }
 
     LaunchedEffect(Unit) {
-        schemes = TerminalColorSchemeLoader.listSchemes(context, isDark)
+        themes = withContext(Dispatchers.IO) {
+            GhosttyThemeStore.listThemes(context, isDark)
+        }
+        if (selectedTheme !in themes) {
+            selectedTheme = GhosttyThemeStore.defaultTheme(isDark)
+            if (isDark) {
+                Settings.tailscaleSSHDarkTheme = selectedTheme
+            } else {
+                Settings.tailscaleSSHLightTheme = selectedTheme
+            }
+        }
     }
 
-    val filteredSchemes = if (searchQuery.isBlank()) {
-        schemes
+    val filteredThemes = if (searchQuery.isBlank()) {
+        themes
     } else {
-        schemes.filter { it.contains(searchQuery, ignoreCase = true) }
+        themes.filter { it.contains(searchQuery, ignoreCase = true) }
     }
 
     OverrideTopBar {
@@ -78,45 +92,50 @@ fun TailscaleThemePickerScreen(
         )
     }
 
+    val scaffoldPadding = LocalScaffoldPadding.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(top = scaffoldPadding.calculateTopPadding()),
     ) {
-        SearchBar(
-            inputField = {
-                SearchBarDefaults.InputField(
-                    query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    onSearch = {},
-                    expanded = false,
-                    onExpandedChange = {},
-                    placeholder = { Text(stringResource(R.string.tailscale_terminal_search_themes)) },
-                )
-            },
+        SearchBarDefaults.InputField(
+            query = searchQuery,
+            onQueryChange = { searchQuery = it },
+            onSearch = {},
             expanded = false,
             onExpandedChange = {},
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-        ) {}
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            placeholder = { Text(stringResource(R.string.tailscale_terminal_search_themes)) },
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = null)
+            },
+        )
 
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(filteredSchemes) { scheme ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                bottom = scaffoldPadding.calculateBottomPadding() + 16.dp,
+            ),
+        ) {
+            items(filteredThemes) { theme ->
                 ListItem(
-                    headlineContent = { Text(scheme) },
+                    headlineContent = { Text(theme) },
                     leadingContent = {
                         RadioButton(
-                            selected = scheme == selectedTheme,
+                            selected = theme == selectedTheme,
                             onClick = null,
                         )
                     },
                     modifier = Modifier.clickable {
-                        selectedTheme = scheme
+                        selectedTheme = theme
                         if (isDark) {
-                            Settings.tailscaleSSHDarkTheme = scheme
+                            Settings.tailscaleSSHDarkTheme = theme
                         } else {
-                            Settings.tailscaleSSHLightTheme = scheme
+                            Settings.tailscaleSSHLightTheme = theme
                         }
                     },
                 )

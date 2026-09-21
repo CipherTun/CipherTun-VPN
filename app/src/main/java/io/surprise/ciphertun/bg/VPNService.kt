@@ -60,7 +60,7 @@ class VPNService :
 
         val builder =
             Builder()
-                .setSession("CipherTun VPN")
+                .setSession("sing-box")
                 .setMtu(options.mtu)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -188,4 +188,6 @@ class VPNService :
     }
 
     override fun sendNotification(notification: Notification) = service.sendNotification(notification)
+
+    override fun cancelNotification(identifier: String, typeID: Int) = service.cancelNotification(identifier, typeID)
 }

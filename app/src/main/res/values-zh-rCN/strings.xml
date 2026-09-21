@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
     <!-- App -->
-    <string name="app_name" translatable="false">CipherTun VPN</string>
+    <string name="app_name" translatable="false">sing-box</string>
     <string name="app_version_title">应用版本</string>
     <string name="language">语言</string>
     <string name="system_default">跟随系统</string>
@@ -84,7 +84,6 @@
     <string name="reset_order">重置顺序</string>
 
     <!-- Connections -->
-    <string name="empty_connections">无连接</string>
     <string name="search_connections">搜索连接…</string>
     <string name="close_connections_confirm">关闭所有连接？</string>
     <string name="connection_state_all">全部</string>
@@ -262,6 +261,8 @@
     <string name="location_permission_title">位置权限</string>
     <string name="location_permission_description">您的个人资料包含 &lt;strong&gt;&lt;tt&gt;wifi_ssid&lt;/tt&gt; 或 &lt;tt&gt;wifi_bssid&lt;/tt&gt; 路由规则&lt;/strong&gt;。为了使它们正常工作，sing-box 在&lt;strong&gt;后台&lt;/strong&gt;使用 &lt;strong&gt;位置&lt;/strong&gt; 权限来获取有关所连接 Wi-Fi 网络的信息。该信息将&lt;strong&gt;仅用于路由目的&lt;/strong&gt;。</string>
     <string name="location_permission_background_description">在 Android 10 及更高版本中，需要&lt;strong&gt;后台位置&lt;/strong&gt;权限。选择&lt;strong&gt;始终允许&lt;/strong&gt;以授予权限。</string>
+    <string name="local_network_permission_title">局域网权限</string>
+    <string name="local_network_permission_description">Android 17 及更高版本要求局域网权限才能访问你的 Wi-Fi 或以太网网络。Android 以附近的设备的名义请求该权限。</string>
     <string name="notification_permission_title">通知权限</string>
     <string name="notification_permission_required_description">sing-box 无法在没有发送通知权限的情况下显示实时网速。请授予权限或禁用实时网速通知后再启动服务。</string>
     <string name="root_access_required">需要 Root 权限</string>
@@ -424,6 +425,7 @@
     <string name="content_description_pause_logs">暂停日志</string>
     <string name="content_description_collapse_search">折叠搜索</string>
     <string name="content_description_search_logs">搜索日志</string>
+    <string name="content_description_more_options">更多选项</string>
 
     <!-- Tools -->
     <string name="title_tools">工具</string>
@@ -478,8 +480,10 @@
     <string name="tailscale_ping_stop">停止</string>
     <string name="tailscale_ping_direct">直接连接</string>
     <string name="tailscale_ping_derp">DERP 中继连接</string>
+    <string name="tailscale_ping_peer_relay">对等中继连接</string>
     <string name="tailscale_ping_endpoint">端点</string>
     <string name="tailscale_ping_derp_region">DERP 区域</string>
+    <string name="tailscale_ping_peer_relay_address">对等中继</string>
     <string name="tailscale_ping_connecting">连接中…</string>
     <string name="tailscale_ping_no_data">无数据</string>
     <string name="tailscale_shared_in">共享至此</string>
@@ -494,28 +498,42 @@
     <string name="tailscale_ssh_connect">通过 SSH 连接</string>
     <string name="tailscale_ssh_options">SSH 选项</string>
     <string name="tailscale_ssh_username">用户名</string>
+    <string name="tailscale_ssh_terminal_type">终端类型</string>
     <string name="tailscale_ssh_remember_options">记住 SSH 选项</string>
     <string name="tailscale_ssh_quick_connect">快速连接</string>
     <string name="tailscale_ssh_quick_connect_description">启用后，你可以通过工具中 Tailscale 条目和节点列表中节点条目的上下文菜单（长按）快速连接到此节点。\n\n当通过 SSH 连接到其他节点时，此节点也会出现在新建会话菜单中。</string>
-    <string name="tailscale_ssh_terminal_hint">你可以在设置 → Termux 配置中自定义终端外观。</string>
+    <string name="tailscale_ssh_terminal_hint">你可以在设置 → Ghostty 配置中自定义终端外观。</string>
     <string name="tailscale_ssh_connect_button">连接</string>
     <string name="tailscale_ssh_connecting">连接中…</string>
     <string name="tailscale_ssh_no_sessions">无活动会话</string>
+    <string name="terminal_session_ended">会话已结束</string>
+    <string name="terminal_press_any_key">按任意键</string>
     <string name="tailscale_ssh_new_session">新建会话</string>
+    <string name="tailscale_ssh_close_session">关闭会话</string>
+    <string name="terminal_notification_channel">终端通知</string>
 
     <!-- Terminal Configuration -->
-    <string name="tailscale_terminal_config">Termux 配置</string>
-    <string name="tailscale_terminal_color_theme">颜色主题</string>
+    <string name="tailscale_terminal_config">Ghostty 配置</string>
     <string name="tailscale_terminal_light_theme">浅色主题</string>
     <string name="tailscale_terminal_dark_theme">深色主题</string>
     <string name="tailscale_terminal_font_config">字体</string>
     <string name="tailscale_terminal_font">字体</string>
     <string name="tailscale_terminal_font_size">字号</string>
-    <string name="tailscale_terminal_font_default">默认</string>
     <string name="tailscale_terminal_font_system">系统字体</string>
     <string name="tailscale_terminal_font_imported">已导入的字体</string>
     <string name="tailscale_terminal_import_font">从文件导入</string>
+    <string name="tailscale_terminal_manage_fonts">管理已导入的字体</string>
+    <string name="tailscale_terminal_manage_fonts_done">完成</string>
     <string name="tailscale_terminal_search_themes">搜索主题</string>
+    <string name="tailscale_terminal_light_config">浅色配置</string>
+    <string name="tailscale_terminal_dark_config">深色配置</string>
+    <string name="tailscale_terminal_theme">主题</string>
+    <string name="tailscale_terminal_custom_config">自定义配置</string>
+    <string name="tailscale_terminal_edit_custom_config">编辑自定义配置</string>
+    <string name="tailscale_terminal_light_custom_config">浅色自定义配置</string>
+    <string name="tailscale_terminal_dark_custom_config">深色自定义配置</string>
+    <string name="tailscale_terminal_font_follow_theme">跟随主题</string>
+    <string name="tailscale_terminal_import_config">从文件导入</string>
 
     <string name="stun_test">STUN 测试</string>
     <string name="stun_server">服务器</string>
@@ -564,6 +582,11 @@
     <string name="oom_report_memory_limit">内存限制</string>
     <string name="oom_report_kill_connections">终止连接</string>
     <string name="oom_report_kill_connections_description">当服务内存超出限制时，终止所有连接以释放内存。</string>
+
+    <!-- Power Report -->
+    <string name="power_report">电源报告</string>
+    <string name="power_report_enable">启用电源报告</string>
+    <string name="power_report_enable_description">每次运行服务都会保存一份报告</string>
 
     <!-- Xposed Module -->
     <string name="xposed_description">sing-box 的特权增强</string>
@@ -619,4 +642,30 @@
     <string name="remote_checking">检查中…</string>
     <string name="remote_available">可用</string>
     <string name="remote_unavailable">不可用</string>
+    <string name="endpoint_globalprotect_sso_unsupported_android">Android 不支持 GlobalProtect SAML 浏览器认证。</string>
+    <string name="endpoint_browser_cookie_missing">浏览器认证已完成，但未取得所需的 VPN Cookie。</string>
+    <string name="endpoint_browser_navigation_failed">浏览器导航失败：%1$s</string>
+    <string name="endpoint_browser_too_many_windows">认证页面打开了过多浏览器窗口。</string>
+    <string name="endpoint_browser_profile_unavailable">此设备无法使用浏览器认证。</string>
+
+    <!-- Taildrop -->
+    <plurals name="taildrop_file_count">
+        <item quantity="other">%1$d 个文件</item>
+    </plurals>
+    <string name="taildrop_send">发送</string>
+    <string name="taildrop_receive">接收</string>
+    <string name="taildrop_files">文件</string>
+    <string name="taildrop_from">来自 %1$s</string>
+    <string name="taildrop_to">发送至 %1$s</string>
+    <string name="taildrop_save">保存</string>
+    <string name="taildrop_share">分享</string>
+    <string name="taildrop_delete">删除</string>
+    <string name="taildrop_drop_zone">拖放文件到此处发送，或轻点选择</string>
+    <string name="taildrop_done">完成</string>
+    <string name="taildrop_no_targets">没有可接收文件的设备</string>
+    <string name="taildrop_no_files_selected">未选择文件</string>
+    <string name="taildrop_connecting">正在连接…</string>
+    <string name="taildrop_dismiss">关闭</string>
+    <string name="taildrop_open_app">打开 sing-box</string>
+    <string name="taildrop_notification_title">正在发送文件</string>
 </resources>

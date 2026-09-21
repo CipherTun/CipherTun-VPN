@@ -41,6 +41,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import io.surprise.ciphertun.R
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,7 +83,9 @@ fun TailscaleExitNodePickerScreen(
         .filter { it.exitNodeOption && it.stableID != selfStableID }
         .filter { searchText.isEmpty() || it.displayName.contains(searchText, ignoreCase = true) || it.hostName.contains(searchText, ignoreCase = true) }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    val scaffoldPadding = LocalScaffoldPadding.current
+
+    Column(modifier = Modifier.fillMaxSize().padding(scaffoldPadding)) {
         OutlinedTextField(
             value = searchText,
             onValueChange = { searchText = it },

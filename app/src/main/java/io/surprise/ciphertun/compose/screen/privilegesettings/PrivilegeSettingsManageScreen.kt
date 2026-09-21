@@ -59,6 +59,7 @@ import io.surprise.ciphertun.compose.shared.AppSelectionCard
 import io.surprise.ciphertun.compose.shared.PackageCache
 import io.surprise.ciphertun.compose.shared.SortMode
 import io.surprise.ciphertun.compose.shared.buildDisplayPackages
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.constant.Status
 import io.surprise.ciphertun.database.Settings
@@ -454,8 +455,12 @@ fun PrivilegeSettingsManageScreen(
         )
     }
 
+    val scaffoldPadding = LocalScaffoldPadding.current
+
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(scaffoldPadding),
     ) {
         AnimatedVisibility(
             visible = isLoading,
@@ -529,8 +534,10 @@ fun PrivilegeSettingsManageScreen(
             modifier = Modifier.fillMaxSize(),
             contentPadding =
             androidx.compose.foundation.layout.PaddingValues(
-                horizontal = 16.dp,
-                vertical = 12.dp,
+                start = 16.dp,
+                end = 16.dp,
+                top = 12.dp,
+                bottom = scaffoldPadding.calculateBottomPadding() + 12.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {

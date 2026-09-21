@@ -96,6 +96,7 @@ import io.surprise.ciphertun.compat.WindowSizeClassCompat
 import io.surprise.ciphertun.compat.isWidthAtLeastBreakpointCompat
 import io.surprise.ciphertun.compose.component.RemoteControlMenuItems
 import io.surprise.ciphertun.compose.component.rememberRemoteServers
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.constant.Status
 import io.surprise.ciphertun.utils.RemoteControlManager
@@ -123,7 +124,7 @@ fun LogScreen(
     val uiState by resolvedViewModel.uiState.collectAsState()
     val context = LocalContext.current
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
-    val isTablet = isWidthAtLeastBreakpointCompat(WindowSizeClassCompat.WIDTH_DP_MEDIUM_LOWER_BOUND)
+    val isTablet = windowSizeClass.isWidthAtLeastBreakpointCompat(WindowSizeClassCompat.WIDTH_DP_MEDIUM_LOWER_BOUND)
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val resolvedTitle = title ?: stringResource(R.string.title_log)
@@ -271,11 +272,15 @@ fun LogScreen(
         }
     }
 
+    val scaffoldPadding = LocalScaffoldPadding.current
+
     Box(
         modifier = Modifier.fillMaxSize(),
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(scaffoldPadding),
         ) {
             // Show selection mode bar
             if (uiState.isSelectionMode) {
@@ -509,7 +514,7 @@ fun LogScreen(
                         start = 8.dp,
                         end = 8.dp,
                         top = 8.dp,
-                        bottom = bottomPadding,
+                        bottom = scaffoldPadding.calculateBottomPadding() + bottomPadding + 8.dp,
                     ),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
@@ -860,7 +865,7 @@ fun LogScreen(
             modifier =
             Modifier
                 .align(Alignment.BottomEnd)
-                .padding(bottom = fabBottomPadding, end = fabEndPadding, top = 16.dp),
+                .padding(bottom = scaffoldPadding.calculateBottomPadding() + fabBottomPadding, end = fabEndPadding, top = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Scroll to bottom FAB

@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.wifi.WifiManager
+import android.os.Build
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.content.getSystemService
@@ -16,7 +17,9 @@ import io.nekohasekai.libbox.SetupOptions
 import io.surprise.ciphertun.bg.AppChangeReceiver
 import io.surprise.ciphertun.bg.CrashReportManager
 import io.surprise.ciphertun.bg.OOMReportManager
+import io.surprise.ciphertun.bg.PowerReportManager
 import io.surprise.ciphertun.bg.UpdateProfileWork
+import io.surprise.ciphertun.compose.screen.tools.TaildropFiles
 import io.surprise.ciphertun.constant.Bugs
 import io.surprise.ciphertun.database.Settings
 import io.surprise.ciphertun.utils.AppLifecycleObserver
@@ -27,6 +30,7 @@ import io.surprise.ciphertun.vendor.Vendor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.io.File
 import java.util.Locale
 import io.surprise.ciphertun.Application as BoxApplication
@@ -47,9 +51,6 @@ class Application : Application() {
         }.onFailure {
             Log.d("Application", "set locale: ${it.message}")
         }
-        HookStatusClient.register(this)
-        PrivilegeSettingsClient.register(this)
-
         val baseDir = filesDir
         baseDir.mkdirs()
         val workingDir = getExternalFilesDir(null)
@@ -59,13 +60,18 @@ class Application : Application() {
             workingDir.mkdirs()
             CrashReportManager.install(workingDir, baseDir)
             OOMReportManager.install(workingDir)
+            PowerReportManager.install(workingDir)
         }
 
         @Suppress("OPT_IN_USAGE")
         GlobalScope.launch(Dispatchers.IO) {
+            Settings.dataStore.initialize()
+            HookStatusClient.register(this@Application)
+            PrivilegeSettingsClient.register(this@Application)
             initialize(baseDir, workingDir, tempDir)
             UpdateProfileWork.reconfigureUpdater()
             HookModuleUpdateNotifier.sync(this@Application)
+            TaildropFiles.cleanCache()
         }
 
         if (Vendor.isPerAppProxyAvailable()) {
@@ -104,9 +110,18 @@ class Application : Application() {
         it.logMaxLines = 3000
         it.debug = BuildConfig.DEBUG
         it.crashReportSource = "Application"
+        it.appVersion = BuildConfig.VERSION_CODE.toString()
+        it.appMarketingVersion = BuildConfig.VERSION_NAME
         it.oomKillerEnabled = Settings.oomKillerEnabled
         it.oomKillerDisabled = Settings.oomKillerDisabled
         it.oomMemoryLimit = Settings.oomMemoryLimitMB.toLong() * 1024L * 1024L
+        it.powerReportEnabled = Settings.powerReportEnabled
+        it.platformMetadata = JSONObject().apply {
+            put("os", "Android " + Build.VERSION.RELEASE)
+            put("sdk", Build.VERSION.SDK_INT)
+            put("manufacturer", Build.MANUFACTURER)
+            put("model", Build.MODEL)
+        }.toString()
     }
 
     companion object {

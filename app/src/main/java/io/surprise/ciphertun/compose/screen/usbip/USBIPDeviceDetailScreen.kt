@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import io.surprise.ciphertun.R
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.usbip.bcdToVersion
 import io.surprise.ciphertun.usbip.formatVidPid
@@ -65,11 +66,14 @@ fun USBIPDeviceDetailScreen(
         return
     }
 
+    val scaffoldPadding = LocalScaffoldPadding.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
             .verticalScroll(rememberScrollState())
+            .padding(scaffoldPadding)
             .padding(vertical = 8.dp),
     ) {
         DetailSection(stringResource(R.string.usbip_identity)) {

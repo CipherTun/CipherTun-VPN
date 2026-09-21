@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
     <!-- App -->
-    <string name="app_name" translatable="false">CipherTun VPN</string>
+    <string name="app_name" translatable="false">sing-box</string>
     <string name="app_version_title">Версия приложения</string>
     <string name="language">Язык</string>
     <string name="system_default">Системный по умолчанию</string>
@@ -84,7 +84,6 @@
     <string name="reset_order">Сбросить порядок</string>
 
     <!-- Connections -->
-    <string name="empty_connections">Нет подключений</string>
     <string name="search_connections">Поиск подключений...</string>
     <string name="close_connections_confirm">Закрыть все соединения?</string>
     <string name="connection_state_all">Все</string>
@@ -433,6 +432,7 @@
     <string name="content_description_pause_logs">Приостановить лог</string>
     <string name="content_description_collapse_search">Свернуть поиск</string>
     <string name="content_description_search_logs">Поиск в логе</string>
+    <string name="content_description_more_options">Дополнительные параметры</string>
     
     <!-- Tools -->
     <string name="title_tools">Инструменты</string>
@@ -487,8 +487,10 @@
     <string name="tailscale_ping_stop">Остановить</string>
     <string name="tailscale_ping_direct">Прямое соединение</string>
     <string name="tailscale_ping_derp">Соединение через DERP</string>
+    <string name="tailscale_ping_peer_relay">Соединение через одноранговый ретранслятор</string>
     <string name="tailscale_ping_endpoint">Конечная точка</string>
     <string name="tailscale_ping_derp_region">Регион DERP</string>
+    <string name="tailscale_ping_peer_relay_address">Одноранговый ретранслятор</string>
     <string name="tailscale_ping_connecting">Подключение…</string>
     <string name="tailscale_ping_no_data">Нет данных</string>
     <string name="tailscale_shared_in">Поделено</string>
@@ -503,28 +505,40 @@
     <string name="tailscale_ssh_connect">Подключение по SSH</string>
     <string name="tailscale_ssh_options">Параметры SSH</string>
     <string name="tailscale_ssh_username">Имя пользователя</string>
+    <string name="tailscale_ssh_terminal_type">Тип терминала</string>
     <string name="tailscale_ssh_remember_options">Запомнить параметры SSH</string>
     <string name="tailscale_ssh_quick_connect">Быстрое подключение</string>
     <string name="tailscale_ssh_quick_connect_description">Если включено, вы можете быстро подключиться к этому узлу через контекстное меню (долгое нажатие) записи Tailscale в инструментах и записей узлов в списке узлов.\n\nЭтот узел также появится в меню «Новая сессия» при подключении к другим узлам по SSH.</string>
-    <string name="tailscale_ssh_terminal_hint">Вы можете настроить внешний вид терминала в разделе Параметры → Конфигурация Termux.</string>
+    <string name="tailscale_ssh_terminal_hint">Вы можете настроить внешний вид терминала в разделе Параметры → Конфигурация Ghostty.</string>
     <string name="tailscale_ssh_connect_button">Подключение</string>
     <string name="tailscale_ssh_connecting">Подключение…</string>
     <string name="tailscale_ssh_no_sessions">Нет активных сессий</string>
+    <string name="terminal_session_ended">Сеанс завершён</string>
+    <string name="terminal_press_any_key">нажмите любую клавишу</string>
     <string name="tailscale_ssh_new_session">Новая сессия</string>
 
     <!-- Terminal Configuration -->
-    <string name="tailscale_terminal_config">Конфигурация Termux</string>
-    <string name="tailscale_terminal_color_theme">Цветовая тема</string>
+    <string name="tailscale_terminal_config">Конфигурация Ghostty</string>
     <string name="tailscale_terminal_light_theme">Светлая тема</string>
     <string name="tailscale_terminal_dark_theme">Тёмная тема</string>
     <string name="tailscale_terminal_font_config">Шрифт</string>
     <string name="tailscale_terminal_font">Семейство шрифтов</string>
     <string name="tailscale_terminal_font_size">Размер шрифта</string>
-    <string name="tailscale_terminal_font_default">По умолчанию</string>
     <string name="tailscale_terminal_font_system">Системные шрифты</string>
     <string name="tailscale_terminal_font_imported">Импортированные шрифты</string>
     <string name="tailscale_terminal_import_font">Импорт из файла</string>
+    <string name="tailscale_terminal_manage_fonts">Управление импортированными шрифтами</string>
+    <string name="tailscale_terminal_manage_fonts_done">Готово</string>
     <string name="tailscale_terminal_search_themes">Поиск тем</string>
+    <string name="tailscale_terminal_light_config">Светлая конфигурация</string>
+    <string name="tailscale_terminal_dark_config">Тёмная конфигурация</string>
+    <string name="tailscale_terminal_theme">Тема</string>
+    <string name="tailscale_terminal_custom_config">Пользовательская конфигурация</string>
+    <string name="tailscale_terminal_edit_custom_config">Изменить пользовательскую конфигурацию</string>
+    <string name="tailscale_terminal_light_custom_config">Светлая пользовательская конфигурация</string>
+    <string name="tailscale_terminal_dark_custom_config">Тёмная пользовательская конфигурация</string>
+    <string name="tailscale_terminal_font_follow_theme">Следовать теме</string>
+    <string name="tailscale_terminal_import_config">Импорт из файла</string>
 
     <string name="stun_test">STUN-тест</string>
     <string name="stun_server">Сервер</string>
@@ -573,6 +587,11 @@
     <string name="oom_report_memory_limit">Ограничение памяти</string>
     <string name="oom_report_kill_connections">Завершить соединения</string>
     <string name="oom_report_kill_connections_description">Завершить все соединения для освобождения памяти при превышении лимита памяти сервиса.</string>
+
+    <!-- Power Report -->
+    <string name="power_report">Отчёт об энергопотреблении</string>
+    <string name="power_report_enable">Включить отчёт об энергопотреблении</string>
+    <string name="power_report_enable_description">Записывать статистику процессорного времени, пробуждений и трафика сервиса. Отчёт сохраняется для каждого запуска сервиса.</string>
 
     <!-- Xposed Module -->
     <string name="xposed_description">Привилегированное расширение для sing-box</string>
@@ -629,4 +648,30 @@
     <string name="remote_checking">Проверка…</string>
     <string name="remote_available">Доступно</string>
     <string name="remote_unavailable">Недоступно</string>
+    <string name="endpoint_globalprotect_sso_unsupported_android">Браузерная аутентификация GlobalProtect SAML не поддерживается на Android.</string>
+    <string name="endpoint_browser_cookie_missing">Аутентификация в браузере завершена, но необходимый VPN cookie не получен.</string>
+
+    <!-- Taildrop -->
+    <plurals name="taildrop_file_count">
+        <item quantity="one">%1$d файл</item>
+        <item quantity="few">%1$d файла</item>
+        <item quantity="many">%1$d файлов</item>
+        <item quantity="other">%1$d файла</item>
+    </plurals>
+    <string name="taildrop_send">Отправка</string>
+    <string name="taildrop_receive">Получение</string>
+    <string name="taildrop_files">Файлы</string>
+    <string name="taildrop_from">от %1$s</string>
+    <string name="taildrop_to">кому %1$s</string>
+    <string name="taildrop_save">Сохранить</string>
+    <string name="taildrop_share">Поделиться</string>
+    <string name="taildrop_delete">Удалить</string>
+    <string name="taildrop_drop_zone">Перетащите файлы сюда, чтобы отправить, или коснитесь, чтобы выбрать</string>
+    <string name="taildrop_done">Готово</string>
+    <string name="taildrop_no_targets">Нет устройств, способных принимать файлы</string>
+    <string name="taildrop_no_files_selected">Файлы не выбраны</string>
+    <string name="taildrop_connecting">Подключение…</string>
+    <string name="taildrop_dismiss">Закрыть</string>
+    <string name="taildrop_open_app">Открыть sing-box</string>
+    <string name="taildrop_notification_title">Отправка файлов</string>
 </resources>

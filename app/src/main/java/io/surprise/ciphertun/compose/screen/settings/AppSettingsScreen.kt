@@ -100,6 +100,7 @@ import io.surprise.ciphertun.R
 import io.surprise.ciphertun.compose.base.UiEvent
 import io.surprise.ciphertun.compose.base.rememberApplyServiceChangeNotifier
 import io.surprise.ciphertun.compose.component.UpdateAvailableDialog
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.constant.Status
 import io.surprise.ciphertun.database.Settings
@@ -456,13 +457,18 @@ fun AppSettingsScreen(
         )
     }
 
+    val scaffoldPadding = LocalScaffoldPadding.current
+
     Column(
         modifier =
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
             .verticalScroll(rememberScrollState())
-            .padding(vertical = 8.dp),
+            .padding(
+                top = scaffoldPadding.calculateTopPadding() + 8.dp,
+                bottom = scaffoldPadding.calculateBottomPadding() + 8.dp,
+            ),
     ) {
         // Info Card
         Card(

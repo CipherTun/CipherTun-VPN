@@ -47,6 +47,7 @@ import io.nekohasekai.libbox.RemoteConnectionOptions
 import io.surprise.ciphertun.R
 import io.surprise.ciphertun.compose.theme.ServiceError
 import io.surprise.ciphertun.compose.theme.ServiceRunning
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.database.RemoteServer
 import io.surprise.ciphertun.database.RemoteServerManager
@@ -143,13 +144,19 @@ fun EditRemoteServerScreen(navController: NavController, serverId: Long = -1L) {
         return
     }
 
+    val scaffoldPadding = LocalScaffoldPadding.current
+
     Column(
         modifier =
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(horizontal = 16.dp)
+            .padding(
+                top = scaffoldPadding.calculateTopPadding() + 16.dp,
+                bottom = scaffoldPadding.calculateBottomPadding() + 16.dp,
+            ),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         OutlinedTextField(

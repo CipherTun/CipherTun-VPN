@@ -37,6 +37,9 @@ object SettingsKey {
     const val OOM_KILLER_DISABLED = "oom_killer_disabled"
     const val OOM_MEMORY_LIMIT_MB = "oom_memory_limit_mb"
 
+    // Power report
+    const val POWER_REPORT_ENABLED = "power_report_enabled"
+
     // dashboard
     const val DASHBOARD_ITEM_ORDER = "dashboard_item_order"
     const val DASHBOARD_DISABLED_ITEMS = "dashboard_disabled_items"
@@ -46,12 +49,16 @@ object SettingsKey {
 
     // Tailscale SSH
     const val TAILSCALE_SSH_REMEMBERED_USERNAMES = "tailscale_ssh_remembered_usernames"
+    const val TAILSCALE_SSH_REMEMBERED_TERMINAL_TYPES = "tailscale_ssh_remembered_terminal_types"
     const val TAILSCALE_SSH_QUICK_CONNECT_PEERS = "tailscale_ssh_quick_connect_peers"
     const val TAILSCALE_SSH_LIGHT_THEME = "tailscale_ssh_light_theme"
     const val TAILSCALE_SSH_DARK_THEME = "tailscale_ssh_dark_theme"
     const val TAILSCALE_SSH_FONT_FAMILY = "tailscale_ssh_font_family"
     const val TAILSCALE_SSH_FONT_SIZE = "tailscale_ssh_font_size"
     const val TAILSCALE_SSH_CUSTOM_FONT_PATH = "tailscale_ssh_custom_font_path"
+    const val TAILSCALE_SSH_LIGHT_CONFIG = "tailscale_ssh_light_config"
+    const val TAILSCALE_SSH_DARK_CONFIG = "tailscale_ssh_dark_config"
+    const val TAILSCALE_SSH_FONT_FOLLOW_THEME = "tailscale_ssh_font_follow_theme"
 
     // cache
     const val STARTED_BY_USER = "started_by_user"

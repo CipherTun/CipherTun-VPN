@@ -41,8 +41,10 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import io.surprise.ciphertun.R
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.database.Settings
+import io.surprise.ciphertun.terminal.DEFAULT_SSH_TERMINAL_TYPE
 import io.surprise.ciphertun.terminal.TailscaleSSHPresentedSession
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,10 +64,16 @@ fun TailscaleSSHPromptScreen(
     }
 
     val rememberedUsernames = Settings.tailscaleSSHRememberedUsernames
+    val rememberedTerminalTypes = Settings.tailscaleSSHRememberedTerminalTypes
     val quickConnectPeers = Settings.tailscaleSSHQuickConnectPeers
 
     var username by remember {
         mutableStateOf(rememberedUsernames[peer.stableID]?.takeIf { it.isNotBlank() } ?: "root")
+    }
+    var terminalType by remember {
+        mutableStateOf(
+            rememberedTerminalTypes[peer.stableID]?.takeIf { it.isNotBlank() } ?: DEFAULT_SSH_TERMINAL_TYPE,
+        )
     }
     var rememberOptions by remember {
         mutableStateOf(quickConnectPeers.contains(peer.stableID))
@@ -82,11 +90,14 @@ fun TailscaleSSHPromptScreen(
         )
     }
 
+    val scaffoldPadding = LocalScaffoldPadding.current
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
             .verticalScroll(rememberScrollState())
+            .padding(scaffoldPadding)
             .padding(vertical = 8.dp),
     ) {
         Text(
@@ -108,6 +119,19 @@ fun TailscaleSSHPromptScreen(
                     value = username,
                     onValueChange = { username = it },
                     label = { Text(stringResource(R.string.tailscale_ssh_username)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.None,
+                        autoCorrectEnabled = false,
+                        imeAction = ImeAction.Next,
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = terminalType,
+                    onValueChange = { terminalType = it },
+                    label = { Text(stringResource(R.string.tailscale_ssh_terminal_type)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.None,
@@ -186,12 +210,22 @@ fun TailscaleSSHPromptScreen(
                 }
                 Settings.tailscaleSSHRememberedUsernames = usernames
 
+                val trimmedTerminalType = terminalType.trim().ifEmpty { DEFAULT_SSH_TERMINAL_TYPE }
+                val terminalTypes = Settings.tailscaleSSHRememberedTerminalTypes.toMutableMap()
+                if (trimmedTerminalType == DEFAULT_SSH_TERMINAL_TYPE) {
+                    terminalTypes.remove(peer.stableID)
+                } else {
+                    terminalTypes[peer.stableID] = trimmedTerminalType
+                }
+                Settings.tailscaleSSHRememberedTerminalTypes = terminalTypes
+
                 sharedViewModel.setPendingSession(
                     TailscaleSSHPresentedSession(
                         endpointTag = endpointTag,
                         peerHostName = peer.hostName,
                         peerAddress = peer.tailscaleIPs.first(),
                         username = trimmedUsername,
+                        terminalType = trimmedTerminalType,
                         hostKeys = peer.sshHostKeys,
                     ),
                 )

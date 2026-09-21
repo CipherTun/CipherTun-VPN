@@ -14,20 +14,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.FileUpload
@@ -59,7 +58,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -67,6 +65,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.surprise.ciphertun.R
 import io.surprise.ciphertun.compose.base.SelectableMessageDialog
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,7 +76,7 @@ fun NewProfileScreen(
     qrsData: ByteArray? = null,
     onNavigateBack: () -> Unit,
     onProfileCreated: (profileId: Long) -> Unit,
-    onOpenWizard: () -> Unit = {},
+    onOpenWizard: (name: String) -> Unit = {},
     viewModel: NewProfileViewModel = viewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -156,11 +155,7 @@ fun NewProfileScreen(
         )
     }
 
-    val bottomInset =
-        with(LocalDensity.current) {
-            WindowInsets.navigationBars.getBottom(this).toDp()
-        }
-    val bottomBarPadding = 88.dp + bottomInset
+    val scaffoldPadding = LocalScaffoldPadding.current
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -168,8 +163,9 @@ fun NewProfileScreen(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-                .padding(bottom = bottomBarPadding),
+                .padding(scaffoldPadding)
+                .padding(bottom = 88.dp)
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // Profile Name
@@ -319,6 +315,42 @@ fun NewProfileScreen(
                             color = MaterialTheme.colorScheme.secondary,
                         )
 
+                        OutlinedCard(
+                            onClick = { onOpenWizard(uiState.name) },
+                            modifier = Modifier.fillMaxWidth(),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                            colors = CardDefaults.outlinedCardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+                            ),
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Guided Setup (Recommended)",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                    Text(
+                                        text = "Pick a protocol and enter what your provider gave you — no config editing needed.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+
+                        HorizontalDivider()
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy((-1).dp), // Overlap borders
@@ -397,25 +429,6 @@ fun NewProfileScreen(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(stringResource(R.string.profile_source_import))
                             }
-                        }
-
-                        OutlinedButton(
-                            onClick = onOpenWizard,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = MaterialTheme.colorScheme.primary,
-                            ),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-                        ) {
-                            Icon(
-                                Icons.Default.CloudDownload,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("No-Code Protocol Setup")
                         }
 
                         AnimatedVisibility(
@@ -580,7 +593,7 @@ fun NewProfileScreen(
                 modifier =
                 Modifier
                     .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .padding(bottom = scaffoldPadding.calculateBottomPadding())
                     .padding(16.dp),
             ) {
                 Button(

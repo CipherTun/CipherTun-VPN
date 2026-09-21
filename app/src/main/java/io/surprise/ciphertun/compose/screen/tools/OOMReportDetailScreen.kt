@@ -56,6 +56,7 @@ import io.surprise.ciphertun.R
 import io.surprise.ciphertun.bg.OOMReport
 import io.surprise.ciphertun.bg.OOMReportFile
 import io.surprise.ciphertun.bg.OOMReportManager
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -179,11 +180,14 @@ fun OOMReportDetailScreen(navController: NavController, reportId: String) {
             )
         }
     } else {
+        val scaffoldPadding = LocalScaffoldPadding.current
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
                 .verticalScroll(rememberScrollState())
+                .padding(scaffoldPadding)
                 .padding(vertical = 8.dp),
         ) {
             Text(

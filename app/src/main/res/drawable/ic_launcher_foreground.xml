@@ -1,22 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  CipherTun launcher icon foreground.
+  A Termux-style terminal prompt glyph (">_"), recolored into CipherTun's
+  electric blue, set inside a tunnel ring. The ring is what keeps this from
+  reading as "just Termux" or "just a generic VPN shield" - terminal and
+  tunnel layered into one mark.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="1024"
-    android:viewportHeight="1024">
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Tunnel ring -->
     <path
-        android:pathData="M778.2,307.2 L297.0,440.3 L491.5,532.5 Z"
-        android:fillColor="#1E4482" />
-    <path
-        android:pathData="M778.2,307.2 L491.5,532.5 L440.3,778.2 Z"
-        android:fillColor="#122C58" />
-    <path
-        android:pathData="M491.5,532.5 L778.2,307.2"
-        android:strokeColor="#8C94A5"
-        android:strokeWidth="10"
+        android:pathData="M 54,24 A 30,30 0 1 1 53.99,24 Z"
+        android:strokeColor="#2F7EFF"
+        android:strokeWidth="4.5"
         android:fillColor="#00000000" />
+
+    <!-- Terminal chevron ">" -->
     <path
-        android:pathData="M491.5,532.5 L440.3,778.2"
-        android:strokeColor="#8C94A5"
-        android:strokeWidth="8"
+        android:pathData="M 37,37 L 55,54 L 37,71"
+        android:strokeColor="#5C9EFF"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
         android:fillColor="#00000000" />
+
+    <!-- Terminal cursor "_" -->
+    <path
+        android:pathData="M 59,50 H 77 V 58 H 59 Z"
+        android:fillColor="#5C9EFF" />
+
 </vector>

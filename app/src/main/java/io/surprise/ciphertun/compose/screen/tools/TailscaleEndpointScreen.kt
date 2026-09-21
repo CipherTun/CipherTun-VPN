@@ -28,10 +28,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -57,11 +59,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import io.surprise.ciphertun.R
 import io.surprise.ciphertun.compose.component.qr.QRCodeDialog
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.compose.util.QRCodeGenerator
 
@@ -104,16 +108,24 @@ fun TailscaleEndpointScreen(
 
     val context = LocalContext.current
     var showAuthQRCode by remember { mutableStateOf(false) }
+    val sendSessions by TaildropSendManager.sessions.collectAsState()
+    val endpointSends = sendSessions.filter { it.endpointTag == endpointTag }
+    val hasActiveSend = endpointSends.any { !it.finished }
+    val hasFailedSend = endpointSends.any { it.errorMessage != null }
+    val scaffoldPadding = LocalScaffoldPadding.current
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
             .verticalScroll(rememberScrollState())
+            .padding(scaffoldPadding)
             .padding(vertical = 8.dp),
     ) {
         val hasThisDevice = endpoint.backendState == "Running" && endpoint.selfPeer != null
         val hasExitNode = endpoint.backendState == "Running" && endpoint.hasExitNodeCandidates
+        val hasTaildrop = endpoint.backendState == "Running" &&
+            (endpoint.taildropFileCount > 0 || endpointSends.isNotEmpty())
         val hasAuth = endpoint.authURL.isNotEmpty()
 
         // Status section
@@ -127,7 +139,7 @@ fun TailscaleEndpointScreen(
             ),
         ) {
             Column {
-                val stateIsLast = !hasThisDevice && !hasExitNode && !hasAuth
+                val stateIsLast = !hasThisDevice && !hasExitNode && !hasTaildrop && !hasAuth
                 ListItem(
                     headlineContent = {
                         Text(
@@ -154,7 +166,7 @@ fun TailscaleEndpointScreen(
                                     .background(stateColor(endpoint.backendState)),
                             )
                             Text(
-                                endpoint.backendState,
+                                endpoint.stateText,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = stateColor(endpoint.backendState),
                             )
@@ -170,7 +182,7 @@ fun TailscaleEndpointScreen(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
                 if (endpoint.backendState == "Running" && endpoint.selfPeer != null) {
-                    val thisDeviceIsLast = !hasExitNode && !hasAuth
+                    val thisDeviceIsLast = !hasExitNode && !hasTaildrop && !hasAuth
                     ListItem(
                         headlineContent = {
                             Text(
@@ -218,7 +230,7 @@ fun TailscaleEndpointScreen(
                     )
                 }
                 if (hasExitNode) {
-                    val exitNodeIsLast = !hasAuth
+                    val exitNodeIsLast = !hasTaildrop && !hasAuth
                     ListItem(
                         headlineContent = {
                             Text(
@@ -260,6 +272,86 @@ fun TailscaleEndpointScreen(
                             .clickable {
                                 navController.navigate(
                                     "tools/tailscale/${Uri.encode(endpointTag)}/exit_node",
+                                )
+                            },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    )
+                }
+                if (hasTaildrop) {
+                    val taildropSubtitle = when {
+                        endpoint.waitingFileCount > 0 -> pluralStringResource(
+                            R.plurals.taildrop_file_count,
+                            endpoint.waitingFileCount,
+                            endpoint.waitingFileCount,
+                        )
+
+                        endpoint.receivingFileCount > 0 ->
+                            stringResource(R.string.taildrop_receive)
+
+                        hasActiveSend -> stringResource(R.string.taildrop_send)
+
+                        endpoint.taildropFileCount > 0 -> pluralStringResource(
+                            R.plurals.taildrop_file_count,
+                            endpoint.taildropFileCount,
+                            endpoint.taildropFileCount,
+                        )
+
+                        else -> null
+                    }
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.taildrop),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Filled.Inbox,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        supportingContent = if (taildropSubtitle != null) {
+                            {
+                                Text(
+                                    taildropSubtitle,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        } else {
+                            null
+                        },
+                        trailingContent = {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                if (hasFailedSend) {
+                                    Badge(containerColor = MaterialTheme.colorScheme.error) {
+                                        Text("!")
+                                    }
+                                }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        },
+                        modifier = Modifier
+                            .clip(
+                                if (!hasAuth) {
+                                    RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+                                } else {
+                                    RoundedCornerShape(0.dp)
+                                },
+                            )
+                            .clickable {
+                                navController.navigate(
+                                    "tools/tailscale/${Uri.encode(endpointTag)}/taildrop",
                                 )
                             },
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
@@ -328,21 +420,50 @@ fun TailscaleEndpointScreen(
                                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                             )
                         }
-                        PeerItem(
-                            peer = peer,
-                            onClick = {
-                                navController.navigate(
-                                    "tools/tailscale/${Uri.encode(endpointTag)}/peer/${Uri.encode(peer.id)}",
+                        val canSSH = peer.online && peer.sshHostKeys.isNotEmpty() &&
+                            peer.tailscaleIPs.isNotEmpty() && peer.id != endpoint.selfPeer?.id
+                        var showSSHMenu by remember { mutableStateOf(false) }
+                        Box {
+                            PeerItem(
+                                peer = peer,
+                                onClick = {
+                                    navController.navigate(
+                                        "tools/tailscale/${Uri.encode(endpointTag)}/peer/${Uri.encode(peer.id)}",
+                                    )
+                                },
+                                onLongClick = if (canSSH) {
+                                    { showSSHMenu = true }
+                                } else {
+                                    null
+                                },
+                                modifier = when {
+                                    group.peers.size == 1 -> Modifier.clip(RoundedCornerShape(12.dp))
+                                    index == 0 -> Modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                                    index == group.peers.lastIndex -> Modifier.clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                                    else -> Modifier
+                                },
+                            )
+                            DropdownMenu(
+                                expanded = showSSHMenu,
+                                onDismissRequest = { showSSHMenu = false },
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.tailscale_ssh_connect)) },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Terminal, contentDescription = null)
+                                    },
+                                    onClick = {
+                                        showSSHMenu = false
+                                        handleSSHNavigation(
+                                            navController,
+                                            sshSharedViewModel,
+                                            peer,
+                                            endpointTag,
+                                        )
+                                    },
                                 )
-                            },
-                            onLongClick = null,
-                            modifier = when {
-                                group.peers.size == 1 -> Modifier.clip(RoundedCornerShape(12.dp))
-                                index == 0 -> Modifier.clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                                index == group.peers.lastIndex -> Modifier.clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
-                                else -> Modifier
-                            },
-                        )
+                            }
+                        }
                     }
                 }
             }

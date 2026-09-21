@@ -1,6 +1,8 @@
 package io.surprise.ciphertun.bg;
 
 import android.os.ParcelFileDescriptor;
+import io.surprise.ciphertun.bg.IAutoRedirectHandler;
+import io.surprise.ciphertun.bg.IAutoRedirectSession;
 import io.surprise.ciphertun.bg.IBridgeSession;
 import io.surprise.ciphertun.bg.INeighborTableCallback;
 import io.surprise.ciphertun.bg.IRootShellSession;
@@ -24,4 +26,7 @@ interface IRootService {
     String lookupSFTPServer() = 7;
 
     IBridgeSession openBridge(String bridgeName, int mtu, String inet4Port, String inet6Port, int ruleIndex, int routeTable) = 8;
+
+    IAutoRedirectSession startAutoRedirect(in byte[] options, IAutoRedirectHandler handler) = 9;
+
 }

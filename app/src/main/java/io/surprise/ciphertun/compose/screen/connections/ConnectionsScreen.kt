@@ -63,6 +63,7 @@ import io.surprise.ciphertun.compat.rememberOverscrollEffectCompat
 import io.surprise.ciphertun.compose.model.Connection
 import io.surprise.ciphertun.compose.model.ConnectionSort
 import io.surprise.ciphertun.compose.model.ConnectionStateFilter
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.compose.util.rememberSheetDismissFromContentOnlyIfGestureStartedAtTopModifier
 import io.surprise.ciphertun.constant.Status
@@ -281,8 +282,9 @@ fun ConnectionsPage(
             modifier = modifier.fillMaxSize(),
         )
     } else {
+        val scaffoldPadding = LocalScaffoldPadding.current
         Column(
-            modifier = modifier.fillMaxSize(),
+            modifier = modifier.fillMaxSize().padding(scaffoldPadding),
         ) {
             headerContent()
             ConnectionsScreen(
@@ -466,23 +468,6 @@ fun ConnectionsScreen(
                     }
                 }
 
-                uiState.connections.isEmpty() -> {
-                    item(key = "connections_empty") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 48.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = stringResource(R.string.empty_connections),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-
                 else -> {
                     items(
                         items = uiState.connections,
@@ -542,20 +527,8 @@ fun ConnectionsScreen(
                     }
                 }
 
-                uiState.connections.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.empty_connections),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-
                 else -> {
+                    val scaffoldPadding = if (asSheet) PaddingValues(0.dp) else LocalScaffoldPadding.current
                     val bounceBlockingConnection = rememberBounceBlockingNestedScrollConnection(lazyListState)
                     LazyColumnCompat(
                         modifier =
@@ -563,7 +536,7 @@ fun ConnectionsScreen(
                             .fillMaxSize()
                             .nestedScroll(bounceBlockingConnection),
                         state = lazyListState,
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = scaffoldPadding.calculateBottomPadding() + 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         overscrollEffect = rememberOverscrollEffectCompat(),
                     ) {

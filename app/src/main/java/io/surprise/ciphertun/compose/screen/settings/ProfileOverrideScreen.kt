@@ -60,6 +60,7 @@ import io.surprise.ciphertun.bg.RootClient
 import io.surprise.ciphertun.compose.base.UiEvent
 import io.surprise.ciphertun.compose.base.rememberApplyServiceChangeNotifier
 import io.surprise.ciphertun.compose.screen.profileoverride.PerAppProxyScanner
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.constant.Status
 import io.surprise.ciphertun.database.Settings
@@ -186,13 +187,18 @@ fun ProfileOverrideScreen(
         }
     }
 
+    val scaffoldPadding = LocalScaffoldPadding.current
+
     Column(
         modifier =
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
             .verticalScroll(rememberScrollState())
-            .padding(vertical = 8.dp),
+            .padding(
+                top = scaffoldPadding.calculateTopPadding() + 8.dp,
+                bottom = scaffoldPadding.calculateBottomPadding() + 8.dp,
+            ),
     ) {
         // Card 1: Auto Redirect
         Card(

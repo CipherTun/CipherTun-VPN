@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TextSnippet
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Terminal
@@ -16,6 +17,12 @@ sealed class Screen(val route: String, @StringRes val titleRes: Int, val icon: I
         route = "dashboard",
         titleRes = R.string.title_dashboard,
         icon = Icons.Default.Dashboard,
+    )
+
+    object Configs : Screen(
+        route = "configs",
+        titleRes = R.string.title_configs,
+        icon = Icons.Default.Folder,
     )
 
     object Log : Screen(
@@ -47,12 +54,18 @@ sealed class Screen(val route: String, @StringRes val titleRes: Int, val icon: I
         titleRes = R.string.title_settings,
         icon = Icons.Default.Settings,
     )
+
+    object More : Screen(
+        route = "more",
+        titleRes = R.string.title_more,
+        icon = Icons.Default.MoreHoriz,
+    )
 }
 
 val bottomNavigationScreens =
     listOf(
         Screen.Dashboard,
+        Screen.Configs,
         Screen.Log,
-        Screen.Tools,
-        Screen.Settings,
+        Screen.More,
     )

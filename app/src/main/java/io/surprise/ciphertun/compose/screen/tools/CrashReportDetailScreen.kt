@@ -56,6 +56,7 @@ import io.surprise.ciphertun.R
 import io.surprise.ciphertun.bg.CrashReport
 import io.surprise.ciphertun.bg.CrashReportFile
 import io.surprise.ciphertun.bg.CrashReportManager
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -178,11 +179,14 @@ fun CrashReportDetailScreen(navController: NavController, reportId: String) {
             )
         }
     } else {
+        val scaffoldPadding = LocalScaffoldPadding.current
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.surface)
                 .verticalScroll(rememberScrollState())
+                .padding(scaffoldPadding)
                 .padding(vertical = 8.dp),
         ) {
             Text(

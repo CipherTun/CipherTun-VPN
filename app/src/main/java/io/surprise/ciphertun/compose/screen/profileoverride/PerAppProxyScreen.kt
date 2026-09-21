@@ -83,6 +83,7 @@ import io.surprise.ciphertun.compose.shared.AppSelectionCard
 import io.surprise.ciphertun.compose.shared.PackageCache
 import io.surprise.ciphertun.compose.shared.SortMode
 import io.surprise.ciphertun.compose.shared.buildDisplayPackages
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.constant.Status
 import io.surprise.ciphertun.database.Settings
@@ -420,8 +421,12 @@ fun PerAppProxyScreen(
         )
     }
 
+    val scaffoldPadding = LocalScaffoldPadding.current
+
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(scaffoldPadding),
     ) {
         AnimatedVisibility(
             visible = isLoading,

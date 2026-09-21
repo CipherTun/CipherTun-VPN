@@ -14,13 +14,17 @@ enum class ProtocolType(val displayName: String, val defaultPort: Int) {
     SSH("SSH", 22),
     SHADOWTLS("ShadowTLS", 443),
     ANYTLS("AnyTLS", 443),
-    TOR("Tor", 0);
+    TOR("Tor", 0),
+    SNELL("Snell", 1080),
+    OPENVPN("OpenVPN", 1194),
+    OPENCONNECT("OpenConnect", 443);
 
     companion object {
         val pickerOrder = listOf(
             VLESS, VMESS, TROJAN, SHADOWSOCKS,
             HYSTERIA2, HYSTERIA, TUIC, WIREGUARD,
-            ANYTLS, SHADOWTLS, SSH, TOR,
+            ANYTLS, SHADOWTLS, SNELL, SSH, TOR,
+            OPENVPN, OPENCONNECT,
             SOCKS, HTTP
         )
     }

@@ -31,13 +31,12 @@ object Settings {
             Application.application,
             KeyValueDatabase::class.java,
             Path.SETTINGS_DATABASE_PATH,
-        ).allowMainThreadQueries()
-            .fallbackToDestructiveMigration()
+        ).fallbackToDestructiveMigration()
             .enableMultiInstanceInvalidation()
             .setQueryExecutor { GlobalScope.launch { it.run() } }
             .build()
     }
-    val dataStore = RoomPreferenceDataStore(instance.keyValuePairDao())
+    val dataStore = RoomPreferenceDataStore { instance.keyValuePairDao() }
     var selectedProfile by dataStore.long(SettingsKey.SELECTED_PROFILE) { -1L }
     var serviceMode by dataStore.string(SettingsKey.SERVICE_MODE) { ServiceMode.NORMAL }
     var startedByUser by dataStore.boolean(SettingsKey.STARTED_BY_USER)
@@ -112,6 +111,8 @@ object Settings {
     var oomKillerDisabled by dataStore.boolean(SettingsKey.OOM_KILLER_DISABLED) { true }
     var oomMemoryLimitMB by dataStore.int(SettingsKey.OOM_MEMORY_LIMIT_MB) { 50 }
 
+    var powerReportEnabled by dataStore.boolean(SettingsKey.POWER_REPORT_ENABLED) { false }
+
     var dashboardItemOrder by dataStore.string(SettingsKey.DASHBOARD_ITEM_ORDER) { "" }
     var dashboardDisabledItems by dataStore.stringSet(SettingsKey.DASHBOARD_DISABLED_ITEMS) { emptySet() }
 
@@ -119,12 +120,16 @@ object Settings {
 
     // Tailscale SSH
     var tailscaleSSHRememberedUsernames by dataStore.map(SettingsKey.TAILSCALE_SSH_REMEMBERED_USERNAMES)
+    var tailscaleSSHRememberedTerminalTypes by dataStore.map(SettingsKey.TAILSCALE_SSH_REMEMBERED_TERMINAL_TYPES)
     var tailscaleSSHQuickConnectPeers by dataStore.stringSet(SettingsKey.TAILSCALE_SSH_QUICK_CONNECT_PEERS)
-    var tailscaleSSHLightTheme by dataStore.string(SettingsKey.TAILSCALE_SSH_LIGHT_THEME) { "base16-3024-light" }
-    var tailscaleSSHDarkTheme by dataStore.string(SettingsKey.TAILSCALE_SSH_DARK_THEME) { "argonaut" }
+    var tailscaleSSHLightTheme by dataStore.string(SettingsKey.TAILSCALE_SSH_LIGHT_THEME) { "Alabaster" }
+    var tailscaleSSHDarkTheme by dataStore.string(SettingsKey.TAILSCALE_SSH_DARK_THEME) { "Afterglow" }
     var tailscaleSSHFontFamily by dataStore.string(SettingsKey.TAILSCALE_SSH_FONT_FAMILY)
     var tailscaleSSHFontSize by dataStore.int(SettingsKey.TAILSCALE_SSH_FONT_SIZE) { 14 }
     var tailscaleSSHCustomFontPath by dataStore.string(SettingsKey.TAILSCALE_SSH_CUSTOM_FONT_PATH)
+    var tailscaleSSHLightConfig by dataStore.string(SettingsKey.TAILSCALE_SSH_LIGHT_CONFIG)
+    var tailscaleSSHDarkConfig by dataStore.string(SettingsKey.TAILSCALE_SSH_DARK_CONFIG)
+    var tailscaleSSHFontFollowTheme by dataStore.boolean(SettingsKey.TAILSCALE_SSH_FONT_FOLLOW_THEME) { true }
 
     var cachedUpdateInfo by dataStore.string(SettingsKey.CACHED_UPDATE_INFO) { "" }
     var cachedApkPath by dataStore.string(SettingsKey.CACHED_APK_PATH) { "" }
