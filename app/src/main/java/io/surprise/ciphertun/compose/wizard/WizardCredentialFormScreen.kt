@@ -87,9 +87,10 @@ fun WizardCredentialFormScreen(
     var wireguardMtu by remember { mutableStateOf("1408") }
     var wireguardReserved by remember { mutableStateOf("") }
     var wireguardAllowedIps by remember { mutableStateOf("0.0.0.0/0,::/0") }
+    var wireguardPersistentKeepalive by remember { mutableStateOf("0") }
     var hysteria2UpMbps by remember { mutableStateOf("") }
     var hysteria2DownMbps by remember { mutableStateOf("") }
-    var snellVersion by remember { mutableStateOf(4) }
+    var snellVersion by remember { mutableStateOf(5) }
     var snellPsk by remember { mutableStateOf("") }
     var snellUserkey by remember { mutableStateOf("") }
     var snellObfsMode by remember { mutableStateOf("none") }
@@ -104,6 +105,7 @@ fun WizardCredentialFormScreen(
     var ovpnWrapType by remember { mutableStateOf("none") }
     var ovpnWrapKey by remember { mutableStateOf("") }
     var ovpnWrapDirection by remember { mutableStateOf("") }
+    var ovpnRedirectGateway by remember { mutableStateOf(true) }
     var ocFlavor by remember { mutableStateOf("anyconnect") }
     var ocUsername by remember { mutableStateOf("") }
     var ocPassword by remember { mutableStateOf("") }
@@ -204,6 +206,7 @@ fun WizardCredentialFormScreen(
                 allowedIps = wireguardAllowedIps,
                 mtu = wireguardMtu.toIntOrNull() ?: 1408,
                 reserved = wireguardReserved,
+                persistentKeepalive = wireguardPersistentKeepalive.toIntOrNull() ?: 0,
             )
             ProtocolType.SOCKS -> OutboundProfile.Socks(
                 remark = remark, server = server, serverPort = portInt,
@@ -212,7 +215,7 @@ fun WizardCredentialFormScreen(
             )
             ProtocolType.HTTP -> OutboundProfile.Http(
                 remark = remark, server = server, serverPort = portInt,
-                username = username, password = password,
+                username = username, password = password, tls = tls,
             )
             ProtocolType.SSH -> OutboundProfile.Ssh(
                 remark = remark, server = server, serverPort = portInt,
@@ -240,6 +243,7 @@ fun WizardCredentialFormScreen(
                 caCertificate = ovpnCaCertificate, clientCertificate = ovpnClientCertificate,
                 clientKey = ovpnClientKey, controlWrapType = ovpnWrapType,
                 controlWrapKey = ovpnWrapKey, controlWrapDirection = ovpnWrapDirection,
+                redirectGateway = ovpnRedirectGateway,
             )
             ProtocolType.OPENCONNECT -> OutboundProfile.OpenConnectClient(
                 remark = remark, server = server, serverPort = portInt,
@@ -369,6 +373,12 @@ fun WizardCredentialFormScreen(
                         "Reserved (e.g. 0,0,0, optional)", wireguardReserved,
                         onValueChange = { wireguardReserved = it },
                     )
+                    LabeledField(
+                        "Persistent Keepalive (seconds, 0 = disabled)",
+                        wireguardPersistentKeepalive,
+                        onValueChange = { wireguardPersistentKeepalive = it },
+                        keyboardType = KeyboardType.Number,
+                    )
                 }
 
                 ProtocolType.VMESS -> FormSection {
@@ -441,6 +451,19 @@ fun WizardCredentialFormScreen(
                         "Password (optional)", password, onValueChange = { password = it },
                         isPassword = true,
                     )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Use HTTPS proxy TLS")
+                        Switch(
+                            checked = tlsType != "none",
+                            onCheckedChange = {
+                                tlsType = if (it) "tls" else "none"
+                            },
+                        )
+                    }
                 }
 
                 ProtocolType.SSH -> FormSection {
@@ -539,8 +562,8 @@ fun WizardCredentialFormScreen(
 
                 ProtocolType.SNELL -> FormSection {
                     DropdownField(
-                        "Version", snellVersion.toString(), listOf("4", "6"),
-                        onSelected = { snellVersion = it.toIntOrNull() ?: 4 },
+                        "Version", snellVersion.toString(), listOf("5", "6"),
+                        onSelected = { snellVersion = it.toIntOrNull() ?: 5 },
                     )
                     LabeledField(
                         "PSK", snellPsk, onValueChange = { snellPsk = it },
@@ -550,7 +573,7 @@ fun WizardCredentialFormScreen(
                         "User Key (optional)", snellUserkey,
                         onValueChange = { snellUserkey = it },
                     )
-                    if (snellVersion == 4) {
+                    if (snellVersion == 5) {
                         DropdownField(
                             "Obfuscation", snellObfsMode, listOf("none", "http"),
                             onSelected = { snellObfsMode = it },
@@ -562,8 +585,8 @@ fun WizardCredentialFormScreen(
                             )
                         }
                     } else {
-                        // version 6 requires a longer PSK and swaps obfs for
-                        // traffic-shaping mode.
+                        // version 6 requires a longer PSK and swaps HTTP
+                        // obfuscation for traffic-shaping mode.
                         Text(
                             "Version 6 requires a PSK between 12 and 255 bytes.",
                             style = MaterialTheme.typography.bodySmall,
@@ -616,6 +639,17 @@ fun WizardCredentialFormScreen(
                         listOf("none", "tls_auth", "tls_crypt", "tls_crypt_v2"),
                         onSelected = { ovpnWrapType = it },
                     )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Route IPv4 traffic through OpenVPN")
+                        Switch(
+                            checked = ovpnRedirectGateway,
+                            onCheckedChange = { ovpnRedirectGateway = it },
+                        )
+                    }
                     if (ovpnWrapType != "none") {
                         MultilineField(
                             "Wrapping Key", ovpnWrapKey,
@@ -774,13 +808,13 @@ fun WizardCredentialFormScreen(
 private fun protocolUsesTlsByDefault(protocol: ProtocolType): Boolean = when (protocol) {
     ProtocolType.SHADOWSOCKS, ProtocolType.WIREGUARD, ProtocolType.SOCKS,
     ProtocolType.HTTP, ProtocolType.SSH, ProtocolType.TOR, ProtocolType.SNELL,
-    ProtocolType.OPENVPN, ProtocolType.OPENCONNECT,
-    ProtocolType.HYSTERIA, ProtocolType.HYSTERIA2, ProtocolType.TUIC -> false
+    ProtocolType.OPENVPN, ProtocolType.OPENCONNECT -> false
     else -> true
 }
 
 private fun protocolSupportsTls(protocol: ProtocolType): Boolean = when (protocol) {
-    ProtocolType.VMESS, ProtocolType.VLESS, ProtocolType.TROJAN, ProtocolType.SOCKS,
+    ProtocolType.VMESS, ProtocolType.VLESS, ProtocolType.TROJAN,
+    ProtocolType.HYSTERIA, ProtocolType.HYSTERIA2, ProtocolType.TUIC,
     ProtocolType.SHADOWTLS, ProtocolType.ANYTLS -> true
     else -> false
 }

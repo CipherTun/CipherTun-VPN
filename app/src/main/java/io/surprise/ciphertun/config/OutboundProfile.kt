@@ -104,7 +104,8 @@ sealed class OutboundProfile {
         val localAddress: String = "10.0.0.2/32",
         val allowedIps: String = "0.0.0.0/0,::/0",
         val mtu: Int = 1408,
-        val reserved: String = ""
+        val reserved: String = "",
+        val persistentKeepalive: Int = 0
     ) : OutboundProfile()
 
     data class Socks(
@@ -120,7 +121,8 @@ sealed class OutboundProfile {
         override val server: String = "",
         override val serverPort: Int = ProtocolType.HTTP.defaultPort,
         val username: String = "",
-        val password: String = ""
+        val password: String = "",
+        val tls: TlsConfig = TlsConfig(enabled = false)
     ) : OutboundProfile()
 
     data class Ssh(
@@ -160,10 +162,10 @@ sealed class OutboundProfile {
         override val remark: String = "",
         override val server: String = "",
         override val serverPort: Int = ProtocolType.SNELL.defaultPort,
-        val version: Int = 4,
+        val version: Int = 5,
         val psk: String = "",
         val userkey: String = "",
-        // v4 only
+        // v5 only (wire-compatible with legacy v4)
         val obfsMode: String = "none",
         val obfsHost: String = "bing.com",
         // v6 only
@@ -189,7 +191,8 @@ sealed class OutboundProfile {
         val clientKey: String = "",
         val controlWrapType: String = "none",
         val controlWrapKey: String = "",
-        val controlWrapDirection: String = ""
+        val controlWrapDirection: String = "",
+        val redirectGateway: Boolean = true
     ) : OutboundProfile()
 
     // Also an "endpoint", not an "outbound". Scoped to what covers real

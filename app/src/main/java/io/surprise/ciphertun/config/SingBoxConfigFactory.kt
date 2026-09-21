@@ -11,7 +11,7 @@ object SingBoxConfigFactory {
 
     fun build(profile: OutboundProfile): String {
         val root = JSONObject()
-        root.put("dns", buildDns())
+        root.put("dns", buildDns(profile))
         root.put("inbounds", buildInbounds())
         // OpenVPN/OpenConnect are sing-box "endpoints", not "outbounds" --
         // a separate top-level config section. Routing treats endpoint tags
@@ -23,21 +23,64 @@ object SingBoxConfigFactory {
         } else {
             root.put("outbounds", buildOutbounds(profile))
         }
-        root.put("route", buildRoute())
+        root.put("route", buildRoute(isEndpointProfile(profile)))
         return root.toString(2)
     }
 
-    private fun buildDns(): JSONObject {
-        // The old scheme-URL "address" format ("tls://8.8.8.8") was removed
-        // in sing-box 1.14.0 -- our exact target version. Current format
-        // splits it into explicit "type" + "server" fields.
-        val server = JSONObject()
+    private fun buildDns(profile: OutboundProfile): JSONObject {
+        // Keep the public DNS resolver as the fallback. For OpenVPN and
+        // OpenConnect, also consume DNS resolvers/search domains pushed by
+        // the VPN server and route only their preferred split-DNS domains
+        // through the VPN endpoint.
+        val remote = JSONObject()
             .put("tag", "dns-remote")
             .put("type", "tls")
             .put("server", "8.8.8.8")
 
+        val servers = JSONArray().put(remote)
+        val rules = JSONArray()
+
+        when (profile) {
+            is OutboundProfile.OpenVpnClient -> {
+                servers.put(
+                    JSONObject()
+                        .put("tag", "vpn-dns")
+                        .put("type", "openvpn")
+                        .put("endpoint", "proxy")
+                        .put("accept_default_resolvers", false)
+                        .put("accept_search_domain", true)
+                )
+                rules.put(
+                    JSONObject()
+                        .put("preferred_by", "vpn-dns")
+                        .put("action", "route")
+                        .put("server", "vpn-dns")
+                )
+            }
+
+            is OutboundProfile.OpenConnectClient -> {
+                servers.put(
+                    JSONObject()
+                        .put("tag", "vpn-dns")
+                        .put("type", "openconnect")
+                        .put("endpoint", "proxy")
+                        .put("accept_default_resolvers", false)
+                        .put("accept_search_domain", true)
+                )
+                rules.put(
+                    JSONObject()
+                        .put("preferred_by", "vpn-dns")
+                        .put("action", "route")
+                        .put("server", "vpn-dns")
+                )
+            }
+
+            else -> Unit
+        }
+
         return JSONObject()
-            .put("servers", JSONArray().put(server))
+            .put("servers", servers)
+            .put("rules", rules)
             .put("final", "dns-remote")
     }
 
@@ -70,17 +113,27 @@ object SingBoxConfigFactory {
         return array.put(direct)
     }
 
-    private fun buildRoute(): JSONObject {
-        // Current (1.14.0) rule-action syntax -- no "dns" outbound needed at
-        // all, "hijack-dns" is a self-contained action. "sniff" first is
-        // sing-box's own recommended pairing so protocol/domain sniffing
-        // actually has something to route on.
-        val sniffRule = JSONObject().put("action", "sniff")
-        val dnsRule = JSONObject().put("protocol", "dns").put("action", "hijack-dns")
+    private fun buildRoute(endpointProfile: Boolean): JSONObject {
+        val rules = JSONArray()
+            .put(JSONObject().put("action", "sniff"))
+            .put(
+                JSONObject()
+                    .put("protocol", "dns")
+                    .put("action", "hijack-dns")
+            )
+
+        if (endpointProfile) {
+            rules.put(
+                JSONObject()
+                    .put("preferred_by", "wireguard")
+                    .put("action", "route")
+                    .put("outbound", "direct")
+            )
+        }
+
         return JSONObject()
-            .put("rules", JSONArray().put(sniffRule).put(dnsRule))
-            .put("final", "proxy")
-            .put("auto_detect_interface", true)
+            .put("rules", rules)
+            .put("final", if (endpointProfile) "direct" else "proxy")
     }
 
     private fun buildOutboundJson(profile: OutboundProfile): JSONObject = when (profile) {
@@ -187,6 +240,7 @@ object SingBoxConfigFactory {
             .apply {
                 if (profile.username.isNotBlank()) put("username", profile.username)
                 if (profile.password.isNotBlank()) put("password", profile.password)
+                putTls(profile.tls)
             }
 
         is OutboundProfile.Ssh -> JSONObject()
@@ -228,7 +282,7 @@ object SingBoxConfigFactory {
             .put("psk", profile.psk)
             .apply {
                 if (profile.userkey.isNotBlank()) put("userkey", profile.userkey)
-                if (profile.version == 4) {
+                if (profile.version == 5) {
                     if (profile.obfsMode != "none") {
                         put("obfs_mode", profile.obfsMode)
                         put("obfs_host", profile.obfsHost)
@@ -268,6 +322,9 @@ object SingBoxConfigFactory {
                             if (profile.presharedKey.isNotBlank()) {
                                 put("pre_shared_key", profile.presharedKey)
                             }
+                            if (profile.persistentKeepalive > 0) {
+                                put("persistent_keepalive_interval", profile.persistentKeepalive)
+                            }
                             if (profile.reserved.isNotBlank()) {
                                 val reservedInts = profile.reserved.split(",")
                                     .mapNotNull { it.trim().toIntOrNull() }
@@ -305,6 +362,9 @@ object SingBoxConfigFactory {
                                 }
                             },
                         )
+                    }
+                    if (profile.redirectGateway) {
+                        put("redirect_gateway", true)
                     }
                 },
             )
