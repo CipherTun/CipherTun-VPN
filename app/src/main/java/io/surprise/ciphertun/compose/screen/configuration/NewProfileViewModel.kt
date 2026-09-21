@@ -10,6 +10,8 @@ import io.surprise.ciphertun.bg.UpdateProfileWork
 import io.surprise.ciphertun.database.Profile
 import io.surprise.ciphertun.database.ProfileManager
 import io.surprise.ciphertun.database.TypedProfile
+import io.surprise.ciphertun.config.SingBoxConfigFactory
+import io.surprise.ciphertun.config.ShareLinkParser
 import io.surprise.ciphertun.utils.HTTPClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +37,8 @@ data class NewProfileUiState(
     val importFileName: String? = null,
     // QRS import
     val qrsData: ByteArray? = null,
+    // Direct proxy/share URI imported from clipboard or QR text
+    val directShareLink: String? = null,
     // State
     val isLoading: Boolean = false,
     val isSaving: Boolean = false,
@@ -63,11 +67,24 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
 
     fun initializeFromQRImport(name: String?, url: String?) {
         if (name != null && url != null) {
-            _uiState.update {
-                it.copy(
-                    name = name,
-                    profileType = ProfileType.Remote,
-                    remoteUrl = url,
+            val direct = ShareLinkParser.isSupportedDirectLink(url)
+
+            _uiState.update { current ->
+                val parsedName = if (direct) {
+                    runCatching { ShareLinkParser.parse(url).name }
+                        .getOrDefault(name)
+                } else {
+                    name
+                }
+
+                current.copy(
+                    name = parsedName,
+                    profileType = if (direct) ProfileType.Local else ProfileType.Remote,
+                    profileSource =
+                        if (direct) ProfileSource.Import
+                        else current.profileSource,
+                    remoteUrl = if (direct) "" else url,
+                    directShareLink = if (direct) url else null,
                 )
             }
         }
@@ -94,14 +111,22 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun updateProfileType(type: ProfileType) {
-        _uiState.update { it.copy(profileType = type) }
+        _uiState.update {
+            it.copy(
+                profileType = type,
+                directShareLink =
+                    if (type == ProfileType.Local) it.directShareLink else null,
+            )
+        }
     }
 
     fun updateProfileSource(source: ProfileSource) {
         _uiState.update {
             it.copy(
                 profileSource = source,
-                importError = null, // Clear import error when changing source
+                directShareLink =
+                    if (source == ProfileSource.Import) it.directShareLink else null,
+                importError = null,
             )
         }
     }
@@ -129,6 +154,7 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
             it.copy(
                 importUri = uri,
                 importFileName = fileName,
+                directShareLink = null,
                 importError = null, // Clear error when file is selected
                 name =
                 if (it.name.isEmpty()) {
@@ -168,7 +194,12 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
         // Validate based on profile type
         when (state.profileType) {
             ProfileType.Local -> {
-                if (state.profileSource == ProfileSource.Import && state.importUri == null && state.qrsData == null) {
+                if (
+                    state.profileSource == ProfileSource.Import &&
+                    state.importUri == null &&
+                    state.qrsData == null &&
+                    state.directShareLink.isNullOrBlank()
+                ) {
                     _uiState.update { it.copy(importError = context.getString(R.string.profile_input_required)) }
                     hasError = true
                 }
@@ -244,26 +275,41 @@ class NewProfileViewModel(application: Application) : AndroidViewModel(applicati
             when (state.profileSource) {
                 ProfileSource.CreateNew -> "{}"
                 ProfileSource.Import -> {
-                    if (state.qrsData != null) {
-                        val content = Libbox.decodeProfileContent(state.qrsData)
-                        content.config
-                    } else {
-                        state.importUri?.let { uri ->
+                    when {
+                        !state.directShareLink.isNullOrBlank() -> {
+                            val parsed = ShareLinkParser.parse(state.directShareLink)
+                            SingBoxConfigFactory.build(parsed.profile)
+                        }
+
+                        state.qrsData != null -> {
+                            val content = Libbox.decodeProfileContent(state.qrsData)
+                            content.config
+                        }
+
+                        state.importUri != null -> {
+                            val uri = state.importUri
                             val sourceURL = uri.toString()
                             when {
                                 sourceURL.startsWith("content://") -> {
-                                    val inputStream = context.contentResolver.openInputStream(uri) as InputStream
+                                    val inputStream =
+                                        context.contentResolver.openInputStream(uri) as InputStream
                                     inputStream.use { it.bufferedReader().readText() }
                                 }
+
                                 sourceURL.startsWith("file://") -> {
                                     File(Uri.parse(sourceURL).path!!).readText()
                                 }
-                                sourceURL.startsWith("http://") || sourceURL.startsWith("https://") -> {
+
+                                sourceURL.startsWith("http://") ||
+                                    sourceURL.startsWith("https://") -> {
                                     HTTPClient().use { it.getString(sourceURL) }
                                 }
+
                                 else -> throw Exception("Unsupported source: $sourceURL")
                             }
-                        } ?: "{}"
+                        }
+
+                        else -> "{}"
                     }
                 }
             }
