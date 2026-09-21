@@ -44,7 +44,7 @@ jobs:
           java-version: "17"
 
       - name: Install Android NDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install NDK ${{ env.NDK_VERSION }}
         run: sdkmanager "ndk;${{ env.NDK_VERSION }}"
@@ -125,7 +125,7 @@ jobs:
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Install SDK and NDK
         run: |
