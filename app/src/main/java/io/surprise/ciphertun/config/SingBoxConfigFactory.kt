@@ -34,10 +34,15 @@ object SingBoxConfigFactory {
         // through the VPN endpoint.
         val remote = JSONObject()
             .put("tag", "dns-remote")
-            .put("type", "tls")
+            .put("type", "https")
             .put("server", "8.8.8.8")
-            .put("server_port", 853)
-            .put("detour", "direct")
+            .put("server_port", 443)
+            .put("path", "/dns-query")
+            .put(
+                "tls",
+                JSONObject()
+                    .put("server_name", "dns.google")
+            )
 
         val servers = JSONArray().put(remote)
         val rules = JSONArray()
