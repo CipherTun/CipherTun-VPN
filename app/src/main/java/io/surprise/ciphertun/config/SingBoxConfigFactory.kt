@@ -36,6 +36,8 @@ object SingBoxConfigFactory {
             .put("tag", "dns-remote")
             .put("type", "tls")
             .put("server", "8.8.8.8")
+            .put("server_port", 853)
+            .put("detour", "direct")
 
         val servers = JSONArray().put(remote)
         val rules = JSONArray()
