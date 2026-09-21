@@ -876,7 +876,7 @@ private fun DropdownField(
                 .fillMaxWidth()
                 .then(menuAnchorCompat(true)),
         )
-        androidx.compose.material3.ExposedDropdownMenu(
+        ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
         ) {

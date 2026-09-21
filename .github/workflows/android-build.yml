@@ -179,8 +179,10 @@ jobs:
           test -s app/libs/libbox-legacy.aar
           ls -lh app/libs/libbox*.aar
 
-      - name: Setup Gradle cache
+      - name: Setup Gradle for clean validation
         uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: true
 
       - name: Fast Gradle configuration check
         run: |
@@ -200,14 +202,19 @@ jobs:
       - name: Build all Android ABIs + universal APK
         env:
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
-          ANDROID_NDK_HOME: ${{ env.ANDROID_SDK_ROOT }}/ndk/${{ env.NDK_VERSION }}
         run: |
           set -eux
+          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}"
+          export PATH="$ANDROID_NDK_HOME:$PATH"
+          test -d "$ANDROID_NDK_HOME"
+          test -x "$ANDROID_NDK_HOME/ndk-build"
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
+          "$ANDROID_NDK_HOME/ndk-build" --version | head -n 2
           ./gradlew \
             :app:assembleOtherRelease \
             :app:assembleOtherLegacyRelease \
             --parallel \
-            --build-cache \
+            --no-build-cache \
             --no-daemon \
             --stacktrace
 
