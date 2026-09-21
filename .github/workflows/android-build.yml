@@ -198,28 +198,10 @@ jobs:
             test -s app/release.keystore
           fi
 
-      - name: Configure ABI
-        env:
-          TARGET_ABI: ${{ matrix.abi }}
-        run: |
-          set -eux
-          cp app/build.gradle.kts app/build.gradle.kts.bak
-          sed -i '/^[[:space:]]*splits[[:space:]]*{$/,/^[[:space:]]*}[[:space:]]*$/d' app/build.gradle.kts
-          sed -i "/^[[:space:]]*compileOptions[[:space:]]*{/i\\
-    splits {\\
-        abi {\\
-            isEnable = true\\
-            isUniversalApk = false\\
-            reset()\\
-            include(\"${TARGET_ABI}\")\\
-        }\\
-    }\\
-" app/build.gradle.kts
-          grep -n -A10 -B2 "splits" app/build.gradle.kts
-
       - name: Build ABI APK
         env:
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+          TARGET_ABI: ${{ matrix.abi }}
         run: |
           set -eux
           export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}"
@@ -227,6 +209,7 @@ jobs:
           ./gradlew \
             :app:assembleOtherRelease \
             :app:assembleOtherLegacyRelease \
+            -PtargetAbi="$TARGET_ABI" \
             --parallel \
             --no-build-cache \
             --no-daemon \
