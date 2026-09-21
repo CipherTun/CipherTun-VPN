@@ -23,6 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         go_arch: [386, amd64, arm, arm64]
+
     steps:
       - name: Checkout sing-box core
         uses: actions/checkout@v6
@@ -35,6 +36,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache: true
           cache-dependency-path: sing-box/go.sum
 
       - name: Set up JDK 17
@@ -43,11 +45,14 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install Android SDK + NDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools ndk;28.2.13676358'
-          log-accepted-android-sdk-licenses: false
+      - name: Verify Android toolchain
+        run: |
+          set -eux
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          test -d "$ANDROID_SDK_ROOT"
+          test -d "$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}"
+          "$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}/ndk-build" --version | head -n 2
 
       - name: Build libbox AARs
         working-directory: sing-box
@@ -55,9 +60,11 @@ jobs:
           set -euxo pipefail
           export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/${NDK_VERSION}"
           make lib_install
-          go run ./cmd/internal/build_libbox -target android -platform android/${{ matrix.go_arch }}
-          test -f libbox.aar
-          test -f libbox-legacy.aar
+          go run ./cmd/internal/build_libbox \
+            -target android \
+            -platform android/${{ matrix.go_arch }}
+          test -s libbox.aar
+          test -s libbox-legacy.aar
           mkdir -p ../libbox-out
           cp libbox.aar ../libbox-out/libbox.aar
           cp libbox-legacy.aar ../libbox-out/libbox-legacy.aar
@@ -70,8 +77,10 @@ jobs:
           retention-days: 7
 
   merge-libbox:
+    name: Merge libbox AARs
     needs: build-libbox
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout sing-box core
         uses: actions/checkout@v6
@@ -84,6 +93,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
+          cache: true
           cache-dependency-path: sing-box/go.sum
 
       - name: Download arch AARs
@@ -93,14 +103,27 @@ jobs:
           path: sing-box/libbox-inputs
           merge-multiple: false
 
+      - name: Verify downloaded AARs
+        run: |
+          set -eux
+          test "$(find sing-box/libbox-inputs -type f -name 'libbox.aar' | wc -l)" -eq 4
+          test "$(find sing-box/libbox-inputs -type f -name 'libbox-legacy.aar' | wc -l)" -eq 4
+
       - name: Merge all ABIs
         working-directory: sing-box
         run: |
           set -euxo pipefail
-          go run ./cmd/internal/merge_aar -output libbox.aar libbox-inputs/*/libbox.aar
-          go run ./cmd/internal/merge_aar -output libbox-legacy.aar libbox-inputs/*/libbox-legacy.aar
+          go run ./cmd/internal/merge_aar \
+            -output libbox.aar \
+            libbox-inputs/*/libbox.aar
+          go run ./cmd/internal/merge_aar \
+            -output libbox-legacy.aar \
+            libbox-inputs/*/libbox-legacy.aar
+          test -s libbox.aar
+          test -s libbox-legacy.aar
           mkdir -p ../merged-aar
-          cp libbox.aar libbox-legacy.aar ../merged-aar/
+          cp libbox.aar ../merged-aar/libbox.aar
+          cp libbox-legacy.aar ../merged-aar/libbox-legacy.aar
 
       - name: Upload merged AARs
         uses: actions/upload-artifact@v6
@@ -110,13 +133,16 @@ jobs:
           retention-days: 7
 
   build-apk:
+    name: Build CipherTun APKs
     needs: merge-libbox
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout CipherTun VPN
         uses: actions/checkout@v6
         with:
           submodules: recursive
+          fetch-depth: 1
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -124,26 +150,21 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK + NDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: 'ndk;28.2.13676358'
-          log-accepted-android-sdk-licenses: false
-
-      - name: Verify GitHub runner Android SDK
+      - name: Verify Android SDK before compilation
         run: |
           set -eux
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          echo "ANDROID_HOME=$ANDROID_HOME"
-
-          test -d "$ANDROID_SDK_ROOT/platforms/android-37.1"
-          test -d "$ANDROID_SDK_ROOT/build-tools/37.0.0"
-
-          echo "=== Installed Android platforms ==="
-          ls -1 "$ANDROID_SDK_ROOT/platforms"
-
-          echo "=== Installed Build-Tools ==="
-          ls -1 "$ANDROID_SDK_ROOT/build-tools"
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+          echo "SDK=$SDK"
+          test -d "$SDK"
+          test -d "$SDK/platforms/android-37.1"
+          test -d "$SDK/build-tools/37.0.0"
+          test -d "$SDK/ndk/${NDK_VERSION}"
+          echo "=== Platforms ==="
+          ls -1 "$SDK/platforms"
+          echo "=== Build Tools ==="
+          ls -1 "$SDK/build-tools"
+          echo "=== NDK ==="
+          ls -1 "$SDK/ndk"
 
       - name: Download merged libbox AARs
         uses: actions/download-artifact@v7
@@ -151,32 +172,52 @@ jobs:
           name: libbox-aars
           path: app/libs
 
-      - name: Verify libbox
+      - name: Verify libbox before Gradle
         run: |
           set -eux
-          test -f app/libs/libbox.aar
-          test -f app/libs/libbox-legacy.aar
+          test -s app/libs/libbox.aar
+          test -s app/libs/libbox-legacy.aar
+          ls -lh app/libs/libbox*.aar
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Fast Gradle configuration check
+        run: |
+          set -eux
+          ./gradlew :app:help --no-daemon --stacktrace
 
       - name: Decode signing keystore
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
         run: |
+          set -eux
           if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
             echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > app/release.keystore
+            test -s app/release.keystore
           fi
 
       - name: Build all Android ABIs + universal APK
         env:
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
         run: |
-          ./gradlew :app:assembleOtherRelease :app:assembleOtherLegacyRelease --stacktrace
+          set -eux
+          ./gradlew \
+            :app:assembleOtherRelease \
+            :app:assembleOtherLegacyRelease \
+            --parallel \
+            --build-cache \
+            --no-daemon \
+            --stacktrace
 
       - name: Verify APK outputs
         run: |
           set -eux
-          find app/build/outputs/apk -type f -name '*.apk' -print
-          test "$(find app/build/outputs/apk -type f -name '*.apk' | wc -l)" -ge 2
-          echo "=== ABI APKs ==="
+          find app/build/outputs/apk -type f -name '*.apk' -print | sort
+          APK_COUNT="$(find app/build/outputs/apk -type f -name '*.apk' | wc -l)"
+          echo "APK count: $APK_COUNT"
+          test "$APK_COUNT" -ge 2
+          echo "=== APK filenames ==="
           find app/build/outputs/apk -type f -name '*.apk' -printf '%f\n' | sort
           echo "=== Version ==="
           cat version.properties
