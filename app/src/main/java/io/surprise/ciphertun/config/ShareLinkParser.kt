@@ -84,7 +84,7 @@ object ShareLinkParser {
 
         val tls = TlsConfig(
             enabled = tlsEnabled,
-            serverName = query["sni"].orEmpty(),
+            serverName = query["sni"].orEmpty().ifBlank { server },
             insecure = bool(query["allowInsecure"] ?: query["insecure"]),
             alpn = csv(query["alpn"]),
             utlsFingerprint = query["fp"].orEmpty(),
@@ -198,7 +198,7 @@ object ShareLinkParser {
 
         val tls = TlsConfig(
             enabled = true,
-            serverName = query["sni"].orEmpty(),
+            serverName = query["sni"].orEmpty().ifBlank { server },
             insecure = bool(query["allowInsecure"] ?: query["insecure"]),
             alpn = csv(query["alpn"]),
             utlsFingerprint = query["fp"].orEmpty()
@@ -298,7 +298,7 @@ object ShareLinkParser {
 
         val tls = TlsConfig(
             enabled = true,
-            serverName = query["sni"].orEmpty(),
+            serverName = query["sni"].orEmpty().ifBlank { server },
             insecure = bool(query["insecure"] ?: query["allowInsecure"]),
             alpn = csv(query["alpn"])
         )
@@ -330,7 +330,7 @@ object ShareLinkParser {
 
         val tls = TlsConfig(
             enabled = true,
-            serverName = query["sni"].orEmpty(),
+            serverName = query["sni"].orEmpty().ifBlank { server },
             insecure = bool(query["insecure"] ?: query["allowInsecure"]),
             alpn = csv(query["alpn"])
         )
@@ -367,7 +367,7 @@ object ShareLinkParser {
 
         val tls = TlsConfig(
             enabled = true,
-            serverName = query["sni"].orEmpty(),
+            serverName = query["sni"].orEmpty().ifBlank { server },
             insecure = bool(query["insecure"] ?: query["allowInsecure"]),
             alpn = csv(query["alpn"])
         )
@@ -476,7 +476,7 @@ object ShareLinkParser {
                 version = int(query["version"], 3),
                 tls = TlsConfig(
                     enabled = true,
-                    serverName = query["sni"].orEmpty(),
+                    serverName = query["sni"].orEmpty().ifBlank { server },
                     insecure = bool(query["insecure"] ?: query["allowInsecure"]),
                     alpn = csv(query["alpn"])
                 )
@@ -497,7 +497,7 @@ object ShareLinkParser {
                 password = decode(uri.userInfo ?: query["password"].orEmpty()),
                 tls = TlsConfig(
                     enabled = true,
-                    serverName = query["sni"].orEmpty(),
+                    serverName = query["sni"].orEmpty().ifBlank { server },
                     insecure = bool(query["insecure"] ?: query["allowInsecure"]),
                     alpn = csv(query["alpn"])
                 )

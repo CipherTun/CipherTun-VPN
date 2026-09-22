@@ -28,10 +28,28 @@ object SingBoxConfigFactory {
     }
 
     private fun buildDns(profile: OutboundProfile): JSONObject {
-        // Keep the public DNS resolver as the fallback. For OpenVPN and
-        // OpenConnect, also consume DNS resolvers/search domains pushed by
-        // the VPN server and route only their preferred split-DNS domains
-        // through the VPN endpoint.
+        /*
+         * DNS dependency order:
+         *
+         *   proxy/endpoint server hostname
+         *          |
+         *          v
+         *   dns-bootstrap (Android/local resolver)
+         *          |
+         *          v
+         *      proxy connects
+         *          |
+         *          v
+         *   dns-remote (DoH through proxy)
+         *
+         * The bootstrap resolver MUST NOT detour through "proxy",
+         * otherwise a hostname-based proxy creates a DNS -> proxy ->
+         * DNS circular dependency.
+         */
+        val bootstrap = JSONObject()
+            .put("tag", "dns-bootstrap")
+            .put("type", "local")
+
         val remote = JSONObject()
             .put("tag", "dns-remote")
             .put("type", "https")
@@ -43,8 +61,12 @@ object SingBoxConfigFactory {
                 JSONObject()
                     .put("server_name", "dns.google")
             )
+            .put("detour", "proxy")
 
-        val servers = JSONArray().put(remote)
+        val servers = JSONArray()
+            .put(bootstrap)
+            .put(remote)
+
         val rules = JSONArray()
 
         when (profile) {
@@ -57,6 +79,7 @@ object SingBoxConfigFactory {
                         .put("accept_default_resolvers", false)
                         .put("accept_search_domain", true)
                 )
+
                 rules.put(
                     JSONObject()
                         .put("preferred_by", "vpn-dns")
@@ -74,6 +97,7 @@ object SingBoxConfigFactory {
                         .put("accept_default_resolvers", false)
                         .put("accept_search_domain", true)
                 )
+
                 rules.put(
                     JSONObject()
                         .put("preferred_by", "vpn-dns")
@@ -89,16 +113,21 @@ object SingBoxConfigFactory {
             .put("servers", servers)
             .put("rules", rules)
             .put("final", "dns-remote")
+            .put("strategy", "prefer_ipv4")
+            .put("optimistic", true)
     }
 
     private fun buildInbounds(): JSONArray {
         val tun = JSONObject()
             .put("type", "tun")
             .put("tag", "tun-in")
-            .put("address", JSONArray().put("172.19.0.1/30"))
+            .put(
+                "address",
+                JSONArray()
+                    .put("172.19.0.1/30")
+            )
             .put("auto_route", true)
-        // Inline "sniff" on the inbound was removed in 1.13.0 -- the
-        // route-level "sniff" rule action in buildRoute() replaces it.
+            .put("strict_route", true)
 
         return JSONArray().put(tun)
     }
@@ -121,26 +150,52 @@ object SingBoxConfigFactory {
     }
 
     private fun buildRoute(endpointProfile: Boolean): JSONObject {
+        /*
+         * Both normal outbounds and endpoint profiles use the same
+         * selected tag: "proxy".
+         *
+         * For normal profiles:
+         *     proxy = VLESS/VMess/Trojan/etc.
+         *
+         * For endpoint profiles:
+         *     proxy = WireGuard/OpenVPN/OpenConnect endpoint.
+         *
+         * Therefore endpoint profiles MUST NOT use "direct" as route.final.
+         */
         val rules = JSONArray()
-            .put(JSONObject().put("action", "sniff"))
+            .put(
+                JSONObject()
+                    .put("action", "sniff")
+            )
             .put(
                 JSONObject()
                     .put("protocol", "dns")
                     .put("action", "hijack-dns")
             )
-
-        if (endpointProfile) {
-            rules.put(
+            .put(
                 JSONObject()
-                    .put("preferred_by", "wireguard")
+                    .put("ip_is_private", true)
                     .put("action", "route")
                     .put("outbound", "direct")
             )
-        }
+
+        /*
+         * default_domain_resolver is critical for hostname-based proxy
+         * servers and endpoint servers.
+         *
+         * prefer_ipv4 is preferred on mobile networks but still permits
+         * IPv6 fallback when IPv4 is unavailable.
+         */
+        val domainResolver = JSONObject()
+            .put("server", "dns-bootstrap")
+            .put("strategy", "prefer_ipv4")
 
         return JSONObject()
             .put("rules", rules)
-            .put("final", if (endpointProfile) "direct" else "proxy")
+            .put("final", "proxy")
+            .put("auto_detect_interface", true)
+            .put("override_android_vpn", true)
+            .put("default_domain_resolver", domainResolver)
     }
 
     private fun buildOutboundJson(profile: OutboundProfile): JSONObject = when (profile) {
