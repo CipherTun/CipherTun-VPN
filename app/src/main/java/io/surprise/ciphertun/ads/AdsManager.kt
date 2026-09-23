@@ -33,6 +33,7 @@ object AdsManager {
     private var interstitial: InterstitialAd? = null
     private var interstitialLoading = false
     private var lastInterstitialAt = 0L
+    private var pendingInterstitialActivity: Activity? = null
 
     private var appOpen: AppOpenAd? = null
     private var appOpenLoading = false
@@ -104,6 +105,13 @@ object AdsManager {
     }
 
     fun showInterstitial(activity: Activity): Boolean {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post {
+                showInterstitial(activity)
+            }
+            return false
+        }
+
         currentActivity = activity
 
         if (!consentReady || AdsConfig.INTERSTITIAL.isBlank()) {
@@ -123,11 +131,13 @@ object AdsManager {
         val ad = interstitial
 
         if (ad == null) {
+            pendingInterstitialActivity = activity
             loadInterstitial(activity.applicationContext)
             return false
         }
 
         interstitial = null
+        pendingInterstitialActivity = null
         isFullscreenAdShowing = true
 
         ad.fullScreenContentCallback =
@@ -179,6 +189,21 @@ object AdsManager {
                     interstitialLoading = false
                     interstitial = ad
                     Log.d(TAG, "Interstitial loaded")
+
+                    val pending = pendingInterstitialActivity
+                    if (
+                        pending != null &&
+                        !isFullscreenAdShowing &&
+                        System.currentTimeMillis() - lastInterstitialAt >= INTERSTITIAL_COOLDOWN_MS
+                    ) {
+                        pendingInterstitialActivity = null
+                        mainHandler.post {
+                            if (pending.isFinishing || pending.isDestroyed) {
+                                return@post
+                            }
+                            showInterstitial(pending)
+                        }
+                    }
                 }
 
                 override fun onAdFailedToLoad(error: LoadAdError) {
@@ -196,17 +221,25 @@ object AdsManager {
         )
     }
 
+    private var interstitialRetry: Runnable? = null
+
     private fun scheduleInterstitialRetry(context: Context) {
-        mainHandler.removeCallbacksAndMessages("interstitial_retry")
-        mainHandler.postDelayed(
-            {
-                loadInterstitial(context)
-            },
-            AD_RETRY_DELAY_MS,
-        )
+        interstitialRetry?.let(mainHandler::removeCallbacks)
+        val retry = Runnable {
+            loadInterstitial(context)
+        }
+        interstitialRetry = retry
+        mainHandler.postDelayed(retry, AD_RETRY_DELAY_MS)
     }
 
     fun onAppForeground(activity: Activity) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            mainHandler.post {
+                onAppForeground(activity)
+            }
+            return
+        }
+
         currentActivity = activity
 
         if (!consentReady || isFullscreenAdShowing) {
@@ -298,7 +331,6 @@ object AdsManager {
                         "App-open failed to load: ${error.code}: ${error.message}",
                     )
 
-                    mainHandler.removeCallbacksAndMessages("appopen_retry")
                     mainHandler.postDelayed(
                         {
                             loadAppOpen(context)

@@ -394,6 +394,24 @@ class MainActivity :
         val currentDestination = navBackStackEntry?.destination
         val currentRoute = currentDestination?.route
         val scope = rememberCoroutineScope()
+
+        // Show an interstitial when the user actually changes destination.
+        // The first destination is intentionally ignored so launch itself
+        // does not count as navigation.
+        var hasObservedInitialRoute by remember { mutableStateOf(false) }
+
+        LaunchedEffect(currentRoute) {
+            if (!hasObservedInitialRoute) {
+                hasObservedInitialRoute = true
+                return@LaunchedEffect
+            }
+
+            if (!currentRoute.isNullOrBlank()) {
+                AdsManager.showInterstitial(this@MainActivity)
+            }
+        }
+        AdsManager.setCurrentActivity(this@MainActivity)
+
         val importHandler = remember { ProfileImportHandler(this@MainActivity) }
 
         val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass

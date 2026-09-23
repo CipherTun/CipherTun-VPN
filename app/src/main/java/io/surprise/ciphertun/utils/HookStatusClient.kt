@@ -23,23 +23,59 @@ object HookStatusClient {
 
     fun refresh() {
         val context = appContext ?: return
-        val binder = ConnectivityBinderUtils.getBinder(context) ?: run {
-            statusFlow.value = null
-            return
-        }
-        ConnectivityBinderUtils.withParcel { data, reply ->
-            data.writeInterfaceToken(HookStatusKeys.DESCRIPTOR)
-            val ok = binder.transact(HookStatusKeys.TRANSACTION_STATUS, data, reply, 0)
-            if (!ok) {
+
+        try {
+            val binder = ConnectivityBinderUtils.getBinder(context) ?: run {
                 statusFlow.value = null
                 return
             }
-            reply.readException()
-            statusFlow.value = Status(
-                active = reply.readInt() != 0,
-                lastPatchedAt = reply.readLong(),
-                version = reply.readInt(),
-                systemPid = reply.readInt(),
+
+            if (!binder.isBinderAlive) {
+                statusFlow.value = null
+                return
+            }
+
+            ConnectivityBinderUtils.withParcel { data, reply ->
+                try {
+                    data.writeInterfaceToken(HookStatusKeys.DESCRIPTOR)
+
+                    val ok =
+                        binder.transact(
+                            HookStatusKeys.TRANSACTION_STATUS,
+                            data,
+                            reply,
+                            0,
+                        )
+
+                    if (!ok) {
+                        statusFlow.value = null
+                        return@withParcel
+                    }
+
+                    reply.readException()
+
+                    statusFlow.value =
+                        Status(
+                            active = reply.readInt() != 0,
+                            lastPatchedAt = reply.readLong(),
+                            version = reply.readInt(),
+                            systemPid = reply.readInt(),
+                        )
+                } catch (t: Throwable) {
+                    statusFlow.value = null
+                    android.util.Log.w(
+                        "HookStatusClient",
+                        "Hook status refresh failed safely",
+                        t,
+                    )
+                }
+            }
+        } catch (t: Throwable) {
+            statusFlow.value = null
+            android.util.Log.w(
+                "HookStatusClient",
+                "Unable to query hook status",
+                t,
             )
         }
     }
