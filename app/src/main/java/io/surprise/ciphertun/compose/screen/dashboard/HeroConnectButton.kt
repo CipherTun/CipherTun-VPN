@@ -190,7 +190,7 @@ fun HeroConnectButton(
                     isRunning -> "CipherTun VPN is protecting your connection"
                     isStarting -> "Establishing secure connection"
                     isStopping -> "Closing VPN connection"
-                    else -> "Tap the button to connect",
+                    else -> "Tap the button to connect"
                 },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
