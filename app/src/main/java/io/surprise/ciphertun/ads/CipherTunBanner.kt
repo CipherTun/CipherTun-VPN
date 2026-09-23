@@ -70,7 +70,7 @@ fun CipherTunBanner(
 
                         val retry =
                             Runnable {
-                                if (!destroyed && !isDestroyed && !isLoading) {
+                                if (!destroyed && !isLoading) {
                                     loadAd(
                                         AdRequest.Builder().build(),
                                     )
