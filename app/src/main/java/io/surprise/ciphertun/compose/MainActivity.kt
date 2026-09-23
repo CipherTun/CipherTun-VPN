@@ -822,9 +822,9 @@ class MainActivity :
         val isProfileRoute = currentRoute?.startsWith("profile/") == true
         val currentRootRoute =
             when {
-                isSettingsSubScreen -> Screen.More.route
-                isToolsSubScreen -> Screen.More.route
-                isMoreSubScreen -> Screen.More.route
+                isSettingsSubScreen -> Screen.Tools.route
+                isToolsSubScreen -> Screen.Tools.route
+                isMoreSubScreen -> Screen.Tools.route
                 currentRoute?.startsWith(Screen.Connections.route) == true -> Screen.Connections.route
                 currentRoute?.startsWith(Screen.Log.route) == true -> Screen.Log.route
                 isProfileRoute -> Screen.Dashboard.route
@@ -945,7 +945,7 @@ class MainActivity :
                     add(Screen.Connections)
                 }
                 add(Screen.Log)
-                add(Screen.More)
+                add(Screen.Tools)
             }
 
         val allowedRoutes =
@@ -953,7 +953,7 @@ class MainActivity :
                 add(Screen.Dashboard.route)
                 add(Screen.Configs.route)
                 add(Screen.Log.route)
-                add(Screen.More.route)
+                add(Screen.Tools.route)
                 if (useNavigationRail && showGroupsInNav) {
                     add(Screen.Groups.route)
                 }

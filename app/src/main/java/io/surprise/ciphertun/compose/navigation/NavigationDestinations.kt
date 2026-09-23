@@ -6,6 +6,7 @@ import androidx.compose.material.icons.automirrored.filled.TextSnippet
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.Terminal
@@ -67,5 +68,5 @@ val bottomNavigationScreens =
         Screen.Dashboard,
         Screen.Configs,
         Screen.Log,
-        Screen.More,
+        Screen.Tools,
     )

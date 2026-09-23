@@ -67,6 +67,7 @@ import io.surprise.ciphertun.compose.screen.tools.TailscaleSSHPromptScreen
 import io.surprise.ciphertun.compose.screen.tools.TailscaleSSHSharedViewModel
 import io.surprise.ciphertun.compose.screen.tools.TailscaleSSHTerminalScreen
 import io.surprise.ciphertun.compose.screen.tools.TailscaleStatusViewModel
+import io.surprise.ciphertun.compose.screen.tools.ToolsScreen
 import io.surprise.ciphertun.compose.screen.tools.ConnectivityScreen
 import io.surprise.ciphertun.compose.screen.tools.DiagnosticsScreen
 import io.surprise.ciphertun.compose.screen.usbip.USBIPDeviceDetailScreen
@@ -138,6 +139,13 @@ fun NavHost(
                     onOpenConfigs = onOpenConfigs,
                 )
             }
+        }
+
+        composable(Screen.Tools.route) {
+            ToolsScreen(
+                navController = navController,
+                showStatusBar = showStatusBar,
+            )
         }
 
         composable(Screen.Log.route) {

@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,11 +43,18 @@ import io.surprise.ciphertun.R
 import io.surprise.ciphertun.compose.component.RemoteControlMenuItems
 import io.surprise.ciphertun.compose.component.rememberRemoteServers
 import io.surprise.ciphertun.compose.navigation.NewProfileArgs
+import io.surprise.ciphertun.compose.screen.configs.PingResult
+import io.surprise.ciphertun.compose.screen.configs.ProfilePingTester
+import io.surprise.ciphertun.database.Profile
 import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 import io.surprise.ciphertun.constant.Status
 import io.surprise.ciphertun.utils.RemoteControlManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.io.File
 
 data class CardRenderItem(val cards: List<CardGroup>, val isRow: Boolean)
 
@@ -202,9 +210,7 @@ fun DashboardScreen(
 
                 item(key = "active_config_summary") {
                     ActiveConfigSummary(
-                        profileName = uiState.profiles.find { it.id == uiState.selectedProfileId }?.name,
-                        downlinkTotal = uiState.downlinkTotal,
-                        uplinkTotal = uiState.uplinkTotal,
+                        profile = uiState.profiles.find { it.id == uiState.selectedProfileId },
                         onClick = onOpenConfigs,
                     )
                 }
@@ -374,11 +380,17 @@ fun isCardAvailableWhenServiceRunning(cardGroup: CardGroup, uiState: DashboardUi
  */
 @Composable
 private fun ActiveConfigSummary(
-    profileName: String?,
-    downlinkTotal: String,
-    uplinkTotal: String,
+    profile: Profile?,
     onClick: () -> Unit,
 ) {
+    var configDetails by remember(profile?.id, profile?.typed?.path) {
+        mutableStateOf(ActiveConfigDetails())
+    }
+
+    LaunchedEffect(profile?.id, profile?.typed?.path) {
+        configDetails = inspectActiveConfig(profile)
+    }
+
     androidx.compose.material3.Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -387,53 +399,267 @@ private fun ActiveConfigSummary(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
     ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        ) {
+            Text(
+                text = "ACTIVE CONFIGURATION",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            // Deliberate blank line after the heading.
+            androidx.compose.foundation.layout.Spacer(
+                modifier = Modifier.padding(top = 14.dp),
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column {
-                    Text(
-                        text = "ACTIVE CONFIGURATION",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = profileName ?: "Not Set",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                Text(
+                    text = profile?.name ?: "Not Set",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+
+                Text(
+                    text = configDetails.protocolSetup,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(top = 12.dp))
+            androidx.compose.foundation.layout.Spacer(
+                modifier = Modifier.padding(top = 4.dp),
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Column {
-                    Text(
-                        text = "DOWNLINK",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(text = downlinkTotal, style = MaterialTheme.typography.bodyLarge)
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "UPLINK",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(text = uplinkTotal, style = MaterialTheme.typography.bodyLarge)
-                }
+                Text(
+                    text = configDetails.serverAddress,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+
+                Text(
+                    text = configDetails.pingText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
 }
+
+private data class ActiveConfigDetails(
+    val protocolSetup: String = "—",
+    val serverAddress: String = "—",
+    val pingText: String = "Ping — —",
+)
+
+private suspend fun inspectActiveConfig(
+    profile: Profile?,
+): ActiveConfigDetails = withContext(Dispatchers.IO) {
+    if (profile == null) {
+        return@withContext ActiveConfigDetails()
+    }
+
+    try {
+        val file = File(profile.typed.path)
+
+        if (!file.exists() || !file.isFile) {
+            return@withContext ActiveConfigDetails()
+        }
+
+        val root = JSONObject(file.readText())
+
+        var protocol = ""
+        var transport = ""
+        var tlsEnabled = false
+        var realityEnabled = false
+        var server = ""
+        var port = -1
+
+        // ----------------------------------------------------
+        // Normal sing-box outbound profiles
+        // ----------------------------------------------------
+
+        val outbounds = root.optJSONArray("outbounds")
+
+        if (outbounds != null) {
+            for (i in 0 until outbounds.length()) {
+                val outbound = outbounds.optJSONObject(i) ?: continue
+                val type = outbound.optString("type", "")
+
+                if (
+                    type.isEmpty() ||
+                    type in setOf(
+                        "direct",
+                        "block",
+                        "dns",
+                        "selector",
+                        "urltest",
+                        "tun",
+                        "mixed",
+                        "socks",
+                        "http",
+                        "redirect",
+                        "tproxy",
+                    )
+                ) {
+                    continue
+                }
+
+                protocol = type
+                server = outbound.optString("server", "")
+                port = outbound.optInt("server_port", -1)
+
+                val transportObject = outbound.optJSONObject("transport")
+
+                if (transportObject != null) {
+                    transport = transportObject.optString("type", "")
+                }
+
+                val tlsObject = outbound.optJSONObject("tls")
+
+                if (tlsObject != null) {
+                    tlsEnabled = tlsObject.optBoolean("enabled", false)
+
+                    val realityObject = tlsObject.optJSONObject("reality")
+
+                    if (realityObject != null) {
+                        realityEnabled = realityObject.optBoolean("enabled", false)
+                    }
+                }
+
+                break
+            }
+        }
+
+        // ----------------------------------------------------
+        // Endpoint profiles such as WireGuard/OpenVPN/
+        // OpenConnect.
+        // ----------------------------------------------------
+
+        if (server.isEmpty()) {
+            val endpoints = root.optJSONArray("endpoints")
+
+            if (endpoints != null) {
+                for (i in 0 until endpoints.length()) {
+                    val endpoint = endpoints.optJSONObject(i) ?: continue
+                    val type = endpoint.optString("type", "")
+
+                    if (type.isEmpty()) {
+                        continue
+                    }
+
+                    if (protocol.isEmpty()) {
+                        protocol = type
+                    }
+
+                    server = endpoint.optString("server", "")
+                    port = endpoint.optInt("server_port", -1)
+
+                    // WireGuard endpoint format can store the
+                    // remote address/port inside peers[].
+                    if (server.isEmpty()) {
+                        val peers = endpoint.optJSONArray("peers")
+                        val peer = peers?.optJSONObject(0)
+
+                        if (peer != null) {
+                            server = peer.optString("address", "")
+                            port = peer.optInt("port", -1)
+                        }
+                    }
+
+                    break
+                }
+            }
+        }
+
+        // ----------------------------------------------------
+        // Build the protocol/setup label ONLY from fields that
+        // actually exist in the saved sing-box JSON.
+        // ----------------------------------------------------
+
+        val setupParts = mutableListOf<String>()
+
+        if (protocol.isNotEmpty()) {
+            setupParts += protocol.uppercase()
+        }
+
+        if (transport.isNotEmpty()) {
+            setupParts += transport.uppercase()
+        }
+
+        if (tlsEnabled) {
+            setupParts += "TLS"
+        }
+
+        if (realityEnabled) {
+            setupParts += "REALITY"
+        }
+
+        val protocolSetup =
+            if (setupParts.isNotEmpty()) {
+                setupParts.joinToString(" • ")
+            } else {
+                "—"
+            }
+
+        // ----------------------------------------------------
+        // Server address comes directly from the saved config.
+        // ----------------------------------------------------
+
+        val serverAddress =
+            when {
+                server.isNotEmpty() && port > 0 ->
+                    "$server:$port"
+
+                server.isNotEmpty() ->
+                    server
+
+                else ->
+                    "—"
+            }
+
+        // ----------------------------------------------------
+        // Real TCP connection timing.
+        //
+        // This is NOT a fabricated ping.
+        // ProfilePingTester performs a real Socket.connect()
+        // to the configured server and port.
+        // ----------------------------------------------------
+
+        val pingText =
+            if (server.isNotEmpty() && port > 0) {
+                when (val ping = ProfilePingTester.ping(server, port)) {
+                    is PingResult.Success ->
+                        "Ping — ${ping.millis} ms"
+
+                    is PingResult.Failure ->
+                        "Ping — —"
+                }
+            } else {
+                "Ping — —"
+            }
+
+        ActiveConfigDetails(
+            protocolSetup = protocolSetup,
+            serverAddress = serverAddress,
+            pingText = pingText,
+        )
+    } catch (_: Exception) {
+        // Never guess if the saved configuration cannot be read.
+        ActiveConfigDetails()
+    }
+}
+
