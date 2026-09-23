@@ -15,7 +15,9 @@ import androidx.compose.material.icons.outlined.NetworkCheck
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -34,6 +36,7 @@ import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.compose.topbar.OverrideTopBar
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun ToolsScreen(
     navController: NavController,
     showStatusBar: Boolean = false,
@@ -214,6 +217,7 @@ fun ToolsScreen(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun SectionTitle(text: String) {
     Text(
         text = text,
