@@ -14,6 +14,7 @@ import android.util.Log
 import androidx.core.content.getSystemService
 import io.nekohasekai.libbox.Libbox
 import io.nekohasekai.libbox.SetupOptions
+import io.surprise.ciphertun.ads.AdsLifecycle
 import io.surprise.ciphertun.bg.AppChangeReceiver
 import io.surprise.ciphertun.bg.CrashReportManager
 import io.surprise.ciphertun.bg.OOMReportManager
@@ -36,6 +37,7 @@ import java.util.Locale
 import io.surprise.ciphertun.Application as BoxApplication
 
 class Application : Application() {
+    private val adsLifecycle = AdsLifecycle()
     override fun attachBaseContext(base: Context?) {
         super.attachBaseContext(base)
         application = this
@@ -44,6 +46,7 @@ class Application : Application() {
     override fun onCreate() {
         super.onCreate()
         AppLifecycleObserver.register(this)
+        adsLifecycle.register(this)
 
 //        Seq.setContext(this)
         runCatching {

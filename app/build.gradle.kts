@@ -188,6 +188,14 @@ android {
 }
 
 dependencies {
+    // Google Mobile Ads / UMP
+    "playImplementation"("com.google.android.gms:play-services-ads:25.5.0")
+    "otherImplementation"("com.google.android.gms:play-services-ads:25.5.0")
+    "otherLegacyImplementation"("com.google.android.gms:play-services-ads:23.6.0")
+    "playImplementation"("com.google.android.ump:user-messaging-platform:4.0.0")
+    "otherImplementation"("com.google.android.ump:user-messaging-platform:4.0.0")
+    "otherLegacyImplementation"("com.google.android.ump:user-messaging-platform:3.2.0")
+
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     // libbox

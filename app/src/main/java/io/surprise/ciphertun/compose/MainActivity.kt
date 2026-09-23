@@ -95,6 +95,9 @@ import androidx.navigation.compose.rememberNavController
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import io.nekohasekai.libbox.Libbox
 import io.surprise.ciphertun.Application
+import io.surprise.ciphertun.ads.AdsConfig
+import io.surprise.ciphertun.ads.AdsManager
+import io.surprise.ciphertun.ads.CipherTunBanner
 import io.surprise.ciphertun.BuildConfig
 import io.surprise.ciphertun.R
 import io.surprise.ciphertun.bg.BoxService
@@ -1028,9 +1031,21 @@ class MainActivity :
 
         val scaffoldContent: @Composable (PaddingValues) -> Unit = { paddingValues ->
             CompositionLocalProvider(LocalScaffoldPadding provides paddingValues) {
-                Box(
-                    modifier = Modifier.fillMaxSize().consumeWindowInsets(paddingValues),
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .consumeWindowInsets(paddingValues),
                 ) {
+                    CipherTunBanner(
+                        adUnitId = AdsConfig.BANNER_PRIMARY,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    ) {
                     // Service Status Bar (shown when service is running or stopping);
                     // remote control replaces it with the remote session bar.
                     val serviceRunning =
@@ -1247,7 +1262,13 @@ class MainActivity :
                     }
                 }
             }
-        }
+
+                    CipherTunBanner(
+                        adUnitId = AdsConfig.BANNER_SECONDARY,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
 
         val crashReportUnreadCount by CrashReportManager.unreadCount.collectAsState()
         val oomReportUnreadCount by OOMReportManager.unreadCount.collectAsState()
@@ -1529,7 +1550,15 @@ class MainActivity :
     }
 
     override fun onServiceStatusChanged(status: Status) {
+        val previous = currentServiceStatus
         currentServiceStatus = status
+
+        if (
+            (status == Status.Started || status == Status.Stopped) &&
+            previous != status
+        ) {
+            AdsManager.showInterstitial(this)
+        }
     }
 
     fun reconnect() {
