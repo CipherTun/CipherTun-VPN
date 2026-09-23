@@ -1037,7 +1037,7 @@ class MainActivity :
                         .consumeWindowInsets(paddingValues),
                 ) {
                     CipherTunBanner(
-                        adUnitId = AdsConfig.BANNER_PRIMARY,
+                        bannerAdUnitId = AdsConfig.BANNER_PRIMARY,
                         modifier = Modifier.fillMaxWidth(),
                     )
 
@@ -1264,7 +1264,7 @@ class MainActivity :
             }
 
                     CipherTunBanner(
-                        adUnitId = AdsConfig.BANNER_SECONDARY,
+                        bannerAdUnitId = AdsConfig.BANNER_SECONDARY,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

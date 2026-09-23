@@ -16,16 +16,20 @@ import com.google.android.gms.ads.LoadAdError
 
 @Composable
 fun CipherTunBanner(
-    adUnitId: String,
+    bannerAdUnitId: String,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val adView = remember(adUnitId) {
+
+    val adView = remember(bannerAdUnitId) {
         AdView(context).apply {
-            adUnitId = this@CipherTunBanner.adUnitId
+            adUnitId = bannerAdUnitId
 
             val density = resources.displayMetrics.density
-            val widthDp = (resources.displayMetrics.widthPixels / density).toInt().coerceAtLeast(320)
+            val widthDp =
+                (resources.displayMetrics.widthPixels / density)
+                    .toInt()
+                    .coerceAtLeast(320)
 
             setAdSize(
                 AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
@@ -43,13 +47,17 @@ fun CipherTunBanner(
             adListener =
                 object : AdListener() {
                     override fun onAdLoaded() {
-                        Log.d("CipherTunAds", "Banner loaded: $adUnitId")
+                        Log.d(
+                            "CipherTunAds",
+                            "Banner loaded: $bannerAdUnitId",
+                        )
                     }
 
                     override fun onAdFailedToLoad(error: LoadAdError) {
                         Log.w(
                             "CipherTunAds",
-                            "Banner failed: $adUnitId - ${error.code}: ${error.message}",
+                            "Banner failed: $bannerAdUnitId - " +
+                                "${error.code}: ${error.message}",
                         )
                     }
                 }
