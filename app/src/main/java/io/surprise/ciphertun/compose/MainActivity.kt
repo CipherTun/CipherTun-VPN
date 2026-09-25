@@ -1603,6 +1603,7 @@ class MainActivity :
             }
         }
     }
+}
 
     override fun onServiceStatusChanged(status: Status) {
         val previous = currentServiceStatus
