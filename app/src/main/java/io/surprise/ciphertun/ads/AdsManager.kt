@@ -22,65 +22,110 @@ object AdsManager {
 
     private const val INTERSTITIAL_COOLDOWN_MS = 30_000L
     private const val APP_OPEN_COOLDOWN_MS = 60_000L
-    private const val AD_RETRY_DELAY_MS = 10_000L
+    private const val RETRY_BASE_MS = 10_000L
+    private const val RETRY_MAX_MS = 60_000L
     private const val APP_OPEN_MAX_AGE_MS = 4L * 60L * 60L * 1000L
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var mobileAdsInitialized = false
     private var consentReady = false
+    private var consentRequestInProgress = false
 
     private var interstitial: InterstitialAd? = null
     private var interstitialLoading = false
+    private var interstitialRetryAttempt = 0
+    private var interstitialRetryRunnable: Runnable? = null
     private var lastInterstitialAt = 0L
-    private var pendingInterstitialActivity: Activity? = null
 
     private var appOpen: AppOpenAd? = null
     private var appOpenLoading = false
+    private var appOpenRetryAttempt = 0
+    private var appOpenRetryRunnable: Runnable? = null
     private var appOpenLoadTime = 0L
     private var lastAppOpenAt = 0L
+    private var firstForegroundSeen = false
 
     private var currentActivity: Activity? = null
-    private var isFullscreenAdShowing = false
+    private var fullscreenAdShowing = false
 
     fun initialize(activity: Activity) {
-        currentActivity = activity
+        runOnMain {
+            currentActivity = activity
 
-        val context = activity.applicationContext
-        val consentInformation = UserMessagingPlatform.getConsentInformation(context)
-        val params = ConsentRequestParameters.Builder().build()
+            val context = activity.applicationContext
+            val consentInformation =
+                UserMessagingPlatform.getConsentInformation(context)
 
-        consentInformation.requestConsentInfoUpdate(
-            activity,
-            params,
-            {
-                UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) {
+            if (consentRequestInProgress) {
+                if (consentInformation.canRequestAds()) {
+                    consentReady = true
+                    initializeMobileAds(context)
+                }
+                return@runOnMain
+            }
+
+            consentRequestInProgress = true
+
+            val params = ConsentRequestParameters.Builder().build()
+
+            consentInformation.requestConsentInfoUpdate(
+                activity,
+                params,
+                {
+                    UserMessagingPlatform.loadAndShowConsentFormIfRequired(
+                        activity,
+                    ) {
+                        consentRequestInProgress = false
+                        consentReady = consentInformation.canRequestAds()
+
+                        if (consentReady) {
+                            initializeMobileAds(context)
+                        } else {
+                            Log.w(TAG, "Ads unavailable: consent not granted")
+                        }
+                    }
+                },
+                { error ->
+                    consentRequestInProgress = false
+
+                    Log.w(
+                        TAG,
+                        "Consent update failed: ${error.message}",
+                    )
+
+                    /*
+                     * Google recommends checking canRequestAds() even
+                     * when consent update itself fails because a valid
+                     * previous-session consent state may still exist.
+                     */
                     consentReady = consentInformation.canRequestAds()
+
                     if (consentReady) {
                         initializeMobileAds(context)
                     }
-                }
-            },
-            { error ->
-                Log.w(TAG, "Consent update failed: ${error.message}")
-                consentReady = consentInformation.canRequestAds()
-                if (consentReady) {
-                    initializeMobileAds(context)
-                }
-            },
-        )
+                },
+            )
 
-        if (consentInformation.canRequestAds()) {
-            consentReady = true
-            initializeMobileAds(context)
+            /*
+             * A previous valid consent decision can allow ads immediately.
+             */
+            if (consentInformation.canRequestAds()) {
+                consentReady = true
+                initializeMobileAds(context)
+            }
         }
     }
 
     fun setCurrentActivity(activity: Activity?) {
-        currentActivity = activity
+        runOnMain {
+            currentActivity = activity
+        }
     }
 
     private fun initializeMobileAds(context: Context) {
+        if (!consentReady) return
+
         if (mobileAdsInitialized) {
             loadInterstitial(context)
             loadAppOpen(context)
@@ -90,16 +135,24 @@ object AdsManager {
         mobileAdsInitialized = true
 
         MobileAds.initialize(context) {
-            Log.d(TAG, "Mobile Ads initialized")
-            loadInterstitial(context)
-            loadAppOpen(context)
+            runOnMain {
+                Log.d(TAG, "Mobile Ads initialized")
+
+                loadInterstitial(context)
+                loadAppOpen(context)
+            }
         }
     }
 
     fun showPrivacyOptions(activity: Activity) {
-        UserMessagingPlatform.showPrivacyOptionsForm(activity) { error ->
-            if (error != null) {
-                Log.w(TAG, "Privacy options failed: ${error.message}")
+        runOnMain {
+            UserMessagingPlatform.showPrivacyOptionsForm(activity) { error ->
+                if (error != null) {
+                    Log.w(
+                        TAG,
+                        "Privacy options failed: ${error.message}",
+                    )
+                }
             }
         }
     }
@@ -114,11 +167,20 @@ object AdsManager {
 
         currentActivity = activity
 
-        if (!consentReady || AdsConfig.INTERSTITIAL.isBlank()) {
+        if (!consentReady) {
+            Log.d(TAG, "Interstitial skipped: consent not ready")
             return false
         }
 
-        if (isFullscreenAdShowing) {
+        if (AdsConfig.INTERSTITIAL.isBlank()) {
+            return false
+        }
+
+        if (fullscreenAdShowing) {
+            return false
+        }
+
+        if (activity.isFinishing || activity.isDestroyed) {
             return false
         }
 
@@ -131,41 +193,74 @@ object AdsManager {
         val ad = interstitial
 
         if (ad == null) {
-            pendingInterstitialActivity = activity
+            /*
+             * Never wait for the load callback and then unexpectedly
+             * interrupt the user's current navigation. Just preload it
+             * for the next valid transition.
+             */
             loadInterstitial(activity.applicationContext)
             return false
         }
 
         interstitial = null
-        pendingInterstitialActivity = null
-        isFullscreenAdShowing = true
+        fullscreenAdShowing = true
+        lastInterstitialAt = now
 
         ad.fullScreenContentCallback =
             object : FullScreenContentCallback() {
+
                 override fun onAdShowedFullScreenContent() {
-                    lastInterstitialAt = System.currentTimeMillis()
                     Log.d(TAG, "Interstitial shown")
                 }
 
                 override fun onAdDismissedFullScreenContent() {
-                    isFullscreenAdShowing = false
+                    fullscreenAdShowing = false
+
                     Log.d(TAG, "Interstitial dismissed")
-                    loadInterstitial(activity.applicationContext)
+
+                    interstitialRetryAttempt = 0
+                    loadInterstitial(
+                        activity.applicationContext,
+                    )
                 }
 
-                override fun onAdFailedToShowFullScreenContent(adError: AdError) {
-                    isFullscreenAdShowing = false
+                override fun onAdFailedToShowFullScreenContent(
+                    adError: AdError,
+                ) {
+                    fullscreenAdShowing = false
                     lastInterstitialAt = 0L
+
                     Log.w(
                         TAG,
-                        "Interstitial failed to show: ${adError.code}: ${adError.message}",
+                        "Interstitial failed to show: " +
+                            "${adError.code}: ${adError.message}",
                     )
-                    loadInterstitial(activity.applicationContext)
+
+                    loadInterstitial(
+                        activity.applicationContext,
+                    )
                 }
             }
 
-        ad.show(activity)
-        return true
+        try {
+            ad.show(activity)
+            return true
+        } catch (t: Throwable) {
+            fullscreenAdShowing = false
+            lastInterstitialAt = 0L
+
+            Log.e(
+                TAG,
+                "Interstitial show threw",
+                t,
+            )
+
+            loadInterstitial(
+                activity.applicationContext,
+            )
+
+            return false
+        }
     }
 
     private fun loadInterstitial(context: Context) {
@@ -178,6 +273,11 @@ object AdsManager {
             return
         }
 
+        interstitialRetryRunnable?.let {
+            mainHandler.removeCallbacks(it)
+        }
+        interstitialRetryRunnable = null
+
         interstitialLoading = true
 
         InterstitialAd.load(
@@ -185,34 +285,25 @@ object AdsManager {
             AdsConfig.INTERSTITIAL,
             AdRequest.Builder().build(),
             object : InterstitialAdLoadCallback() {
+
                 override fun onAdLoaded(ad: InterstitialAd) {
                     interstitialLoading = false
                     interstitial = ad
-                    Log.d(TAG, "Interstitial loaded")
+                    interstitialRetryAttempt = 0
 
-                    val pending = pendingInterstitialActivity
-                    if (
-                        pending != null &&
-                        !isFullscreenAdShowing &&
-                        System.currentTimeMillis() - lastInterstitialAt >= INTERSTITIAL_COOLDOWN_MS
-                    ) {
-                        pendingInterstitialActivity = null
-                        mainHandler.post {
-                            if (pending.isFinishing || pending.isDestroyed) {
-                                return@post
-                            }
-                            showInterstitial(pending)
-                        }
-                    }
+                    Log.d(TAG, "Interstitial loaded")
                 }
 
-                override fun onAdFailedToLoad(error: LoadAdError) {
+                override fun onAdFailedToLoad(
+                    error: LoadAdError,
+                ) {
                     interstitialLoading = false
                     interstitial = null
 
                     Log.w(
                         TAG,
-                        "Interstitial failed to load: ${error.code}: ${error.message}",
+                        "Interstitial failed to load: " +
+                            "${error.code}: ${error.message}",
                     )
 
                     scheduleInterstitialRetry(context)
@@ -221,15 +312,36 @@ object AdsManager {
         )
     }
 
-    private var interstitialRetry: Runnable? = null
-
     private fun scheduleInterstitialRetry(context: Context) {
-        interstitialRetry?.let(mainHandler::removeCallbacks)
-        val retry = Runnable {
-            loadInterstitial(context)
+        if (!consentReady) return
+
+        interstitialRetryRunnable?.let {
+            mainHandler.removeCallbacks(it)
         }
-        interstitialRetry = retry
-        mainHandler.postDelayed(retry, AD_RETRY_DELAY_MS)
+
+        val delay =
+            retryDelay(interstitialRetryAttempt)
+
+        interstitialRetryAttempt =
+            (interstitialRetryAttempt + 1).coerceAtMost(6)
+
+        val retry =
+            Runnable {
+                interstitialRetryRunnable = null
+                loadInterstitial(context)
+            }
+
+        interstitialRetryRunnable = retry
+
+        Log.d(
+            TAG,
+            "Retrying interstitial in ${delay}ms",
+        )
+
+        mainHandler.postDelayed(
+            retry,
+            delay,
+        )
     }
 
     fun onAppForeground(activity: Activity) {
@@ -242,7 +354,20 @@ object AdsManager {
 
         currentActivity = activity
 
-        if (!consentReady || isFullscreenAdShowing) {
+        if (!consentReady) return
+        if (fullscreenAdShowing) return
+
+        /*
+         * First foreground only preloads. This prevents an app-open
+         * ad from unexpectedly covering the initial screen.
+         */
+        if (!firstForegroundSeen) {
+            firstForegroundSeen = true
+            loadAppOpen(activity.applicationContext)
+            return
+        }
+
+        if (activity.isFinishing || activity.isDestroyed) {
             return
         }
 
@@ -252,9 +377,12 @@ object AdsManager {
             return
         }
 
-        val ad = appOpen
+        if (!isAppOpenFresh()) {
+            loadAppOpen(activity.applicationContext)
+            return
+        }
 
-        if (ad == null || !isAppOpenFresh()) {
+        val ad = appOpen ?: run {
             loadAppOpen(activity.applicationContext)
             return
         }
@@ -262,40 +390,67 @@ object AdsManager {
         appOpen = null
         appOpenLoadTime = 0L
         lastAppOpenAt = now
-        isFullscreenAdShowing = true
+        fullscreenAdShowing = true
 
         ad.fullScreenContentCallback =
             object : FullScreenContentCallback() {
+
                 override fun onAdShowedFullScreenContent() {
                     Log.d(TAG, "App-open shown")
                 }
 
                 override fun onAdDismissedFullScreenContent() {
-                    isFullscreenAdShowing = false
+                    fullscreenAdShowing = false
+
                     Log.d(TAG, "App-open dismissed")
-                    loadAppOpen(activity.applicationContext)
+
+                    appOpenRetryAttempt = 0
+                    loadAppOpen(
+                        activity.applicationContext,
+                    )
                 }
 
-                override fun onAdFailedToShowFullScreenContent(adError: AdError) {
-                    isFullscreenAdShowing = false
+                override fun onAdFailedToShowFullScreenContent(
+                    adError: AdError,
+                ) {
+                    fullscreenAdShowing = false
                     lastAppOpenAt = 0L
 
                     Log.w(
                         TAG,
-                        "App-open failed to show: ${adError.code}: ${adError.message}",
+                        "App-open failed to show: " +
+                            "${adError.code}: ${adError.message}",
                     )
 
-                    loadAppOpen(activity.applicationContext)
+                    loadAppOpen(
+                        activity.applicationContext,
+                    )
                 }
             }
 
-        ad.show(activity)
+        try {
+            ad.show(activity)
+        } catch (t: Throwable) {
+            fullscreenAdShowing = false
+            lastAppOpenAt = 0L
+
+            Log.e(
+                TAG,
+                "App-open show threw",
+                t,
+            )
+
+            loadAppOpen(
+                activity.applicationContext,
+            )
+        }
     }
 
     private fun isAppOpenFresh(): Boolean =
         appOpen != null &&
             appOpenLoadTime > 0L &&
-            Date().time - appOpenLoadTime < APP_OPEN_MAX_AGE_MS
+            Date().time - appOpenLoadTime <
+            APP_OPEN_MAX_AGE_MS
 
     private fun loadAppOpen(context: Context) {
         if (
@@ -307,6 +462,11 @@ object AdsManager {
             return
         }
 
+        appOpenRetryRunnable?.let {
+            mainHandler.removeCallbacks(it)
+        }
+        appOpenRetryRunnable = null
+
         appOpenLoading = true
 
         AppOpenAd.load(
@@ -314,31 +474,80 @@ object AdsManager {
             AdsConfig.APP_OPEN,
             AdRequest.Builder().build(),
             object : AppOpenAd.AppOpenAdLoadCallback() {
+
                 override fun onAdLoaded(ad: AppOpenAd) {
                     appOpenLoading = false
                     appOpen = ad
                     appOpenLoadTime = Date().time
+                    appOpenRetryAttempt = 0
+
                     Log.d(TAG, "App-open loaded")
                 }
 
-                override fun onAdFailedToLoad(error: LoadAdError) {
+                override fun onAdFailedToLoad(
+                    error: LoadAdError,
+                ) {
                     appOpenLoading = false
                     appOpen = null
                     appOpenLoadTime = 0L
 
                     Log.w(
                         TAG,
-                        "App-open failed to load: ${error.code}: ${error.message}",
+                        "App-open failed to load: " +
+                            "${error.code}: ${error.message}",
                     )
 
-                    mainHandler.postDelayed(
-                        {
-                            loadAppOpen(context)
-                        },
-                        AD_RETRY_DELAY_MS,
-                    )
+                    scheduleAppOpenRetry(context)
                 }
             },
         )
+    }
+
+    private fun scheduleAppOpenRetry(context: Context) {
+        if (!consentReady) return
+
+        appOpenRetryRunnable?.let {
+            mainHandler.removeCallbacks(it)
+        }
+
+        val delay =
+            retryDelay(appOpenRetryAttempt)
+
+        appOpenRetryAttempt =
+            (appOpenRetryAttempt + 1).coerceAtMost(6)
+
+        val retry =
+            Runnable {
+                appOpenRetryRunnable = null
+                loadAppOpen(context)
+            }
+
+        appOpenRetryRunnable = retry
+
+        Log.d(
+            TAG,
+            "Retrying app-open in ${delay}ms",
+        )
+
+        mainHandler.postDelayed(
+            retry,
+            delay,
+        )
+    }
+
+    private fun retryDelay(attempt: Int): Long {
+        val multiplier =
+            1L shl attempt.coerceIn(0, 3)
+
+        return (RETRY_BASE_MS * multiplier)
+            .coerceAtMost(RETRY_MAX_MS)
+    }
+
+    private fun runOnMain(action: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            action()
+        } else {
+            mainHandler.post(action)
+        }
     }
 }
