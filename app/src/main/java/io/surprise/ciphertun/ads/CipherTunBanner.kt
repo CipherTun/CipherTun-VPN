@@ -93,7 +93,6 @@ fun CipherTunBanner(
         onDispose {
             retryJob?.cancel()
             retryJob = null
-            adView.adListener = null
             adView.destroy()
         }
     }
