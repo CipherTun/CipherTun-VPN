@@ -203,7 +203,9 @@ fun AppSettingsScreen(
 
     // Re-check states when returning from background (e.g., after granting permission)
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        HookStatusClient.refreshAsync()
+        scope.launch {
+            HookStatusClient.refreshAsync()
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Application.notification.createNotificationChannel(
                 NotificationChannel(

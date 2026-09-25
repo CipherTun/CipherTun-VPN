@@ -295,7 +295,10 @@ fun TailscalePeerScreen(
 
         // Ping section (not for self peer)
         if (!isSelf && peer.online && peer.tailscaleIPs.isNotEmpty()) {
-            val peerIP = peer.tailscaleIPs.firstOrNull() ?: return@Row
+            val peerIP = peer.tailscaleIPs.firstOrNull()
+            if (peerIP == null) {
+                return
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
             Row(

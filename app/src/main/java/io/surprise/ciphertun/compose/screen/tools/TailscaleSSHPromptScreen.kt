@@ -223,7 +223,7 @@ fun TailscaleSSHPromptScreen(
                     TailscaleSSHPresentedSession(
                         endpointTag = endpointTag,
                         peerHostName = peer.hostName,
-                        peerAddress = peer.tailscaleIPs.firstOrNull() ?: return@LaunchedEffect,
+                        peerAddress = peer.tailscaleIPs.firstOrNull() ?: return@Button,
                         username = trimmedUsername,
                         terminalType = trimmedTerminalType,
                         hostKeys = peer.sshHostKeys,
