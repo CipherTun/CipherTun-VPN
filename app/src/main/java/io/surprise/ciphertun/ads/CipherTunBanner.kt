@@ -1,25 +1,21 @@
 package io.surprise.ciphertun.ads
 
+import android.os.Handler
+import android.os.Looper
 import android.view.ViewGroup
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.google.android.gms.ads.AdListener
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
-import kotlinx.coroutines.delay
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun CipherTunBanner(
@@ -40,7 +36,7 @@ fun CipherTunBanner(
                 AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
                     context,
                     widthDp,
-                )
+                ),
             )
 
             adUnitId = bannerAdUnitId
@@ -52,61 +48,57 @@ fun CipherTunBanner(
         }
     }
 
-    var retryKey by remember(bannerAdUnitId) {
-        mutableStateOf(0)
+    val retryHandler = remember(adView) {
+        Handler(Looper.getMainLooper())
     }
 
-    var retryJob by remember(bannerAdUnitId) {
-        mutableStateOf<Job?>(null)
-    }
-
-    val scope = rememberCoroutineScope()
-
-    fun loadBanner() {
-        retryJob?.cancel()
-
-        adView.loadAd(
-            AdRequest.Builder().build()
-        )
-    }
-
-    LaunchedEffect(bannerAdUnitId, retryKey) {
-        loadBanner()
+    val retryRunnable = remember(adView) {
+        object : Runnable {
+            override fun run() {
+                adView.loadAd(AdRequest.Builder().build())
+            }
+        }
     }
 
     DisposableEffect(adView, bannerAdUnitId) {
         adView.adListener = object : AdListener() {
+
             override fun onAdLoaded() {
-                retryJob?.cancel()
-                retryJob = null
+                retryHandler.removeCallbacks(retryRunnable)
             }
 
             override fun onAdFailedToLoad(error: LoadAdError) {
-                retryJob?.cancel()
-                retryJob = scope.launch {
-                    delay(10_000L)
-                    retryKey++
-                }
+                retryHandler.removeCallbacks(retryRunnable)
+                retryHandler.postDelayed(
+                    retryRunnable,
+                    10_000L,
+                )
             }
         }
 
+        // Listener MUST be installed before loadAd().
+        adView.loadAd(AdRequest.Builder().build())
+
         onDispose {
-            retryJob?.cancel()
-            retryJob = null
+            retryHandler.removeCallbacks(retryRunnable)
+            adView.adListener = null
             adView.destroy()
         }
     }
 
-    AndroidView(
-        modifier = modifier,
-        factory = {
-            adView
-        },
-        update = { view ->
-            if (view.adUnitId != bannerAdUnitId) {
-                view.adUnitId = bannerAdUnitId
-                retryKey++
-            }
-        },
-    )
+    Box(
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        AndroidView(
+            modifier = Modifier.fillMaxWidth(),
+            factory = { adView },
+            update = { view ->
+                if (view.adUnitId != bannerAdUnitId) {
+                    view.adUnitId = bannerAdUnitId
+                    retryHandler.removeCallbacks(retryRunnable)
+                    view.loadAd(AdRequest.Builder().build())
+                }
+            },
+        )
+    }
 }

@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -1054,11 +1055,6 @@ class MainActivity :
                         .fillMaxSize()
                         .consumeWindowInsets(paddingValues),
                 ) {
-                    CipherTunBanner(
-                        bannerAdUnitId = AdsConfig.BANNER_PRIMARY,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1281,10 +1277,6 @@ class MainActivity :
                 }
             }
 
-                    CipherTunBanner(
-                        bannerAdUnitId = AdsConfig.BANNER_SECONDARY,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
                 }
             }
 
@@ -1304,7 +1296,33 @@ class MainActivity :
         }
 
         CompositionLocalProvider(LocalTopBarController provides topBarController) {
-            if (useNavigationRail) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                // ========================================================
+                // TOP BANNER
+                // Protected by the status-bar safe inset.
+                // ========================================================
+                CipherTunBanner(
+                    bannerAdUnitId = AdsConfig.BANNER_PRIMARY,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Top,
+                            ),
+                        ),
+                )
+
+                // ========================================================
+                // ALL APP SCREENS
+                // ========================================================
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                ) {
+                    if (useNavigationRail) {
                 Row(modifier = Modifier.fillMaxSize()) {
                     Surface(tonalElevation = 1.dp) {
                         NavigationRail(
@@ -1415,6 +1433,21 @@ class MainActivity :
                 ) { paddingValues ->
                     scaffoldContent(paddingValues)
                 }
+
+                // ========================================================
+                // BOTTOM BANNER
+                // It remains above the app navigation bar.
+                // ========================================================
+                CipherTunBanner(
+                    bannerAdUnitId = AdsConfig.BANNER_SECONDARY,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(
+                                WindowInsetsSides.Bottom,
+                            ),
+                        ),
+                )
             }
         }
 
