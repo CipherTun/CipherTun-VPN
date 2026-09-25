@@ -81,7 +81,6 @@ fun CipherTunBanner(
 
         onDispose {
             retryHandler.removeCallbacks(retryRunnable)
-            adView.adListener = null
             adView.destroy()
         }
     }
