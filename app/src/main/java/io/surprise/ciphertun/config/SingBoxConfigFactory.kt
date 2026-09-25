@@ -311,8 +311,83 @@ object SingBoxConfigFactory {
             .put("server_port", profile.serverPort)
             .put("user", profile.username)
             .apply {
-                if (profile.password.isNotBlank()) put("password", profile.password)
-                if (profile.privateKey.isNotBlank()) put("private_key", profile.privateKey)
+                if (profile.password.isNotBlank()) {
+                    put("password", profile.password)
+                }
+
+                if (profile.privateKeyPath.isNotBlank()) {
+                    put("private_key_path", profile.privateKeyPath)
+                } else if (profile.privateKey.isNotBlank()) {
+                    put("private_key", profile.privateKey)
+                }
+
+                if (profile.privateKeyPassphrase.isNotBlank()) {
+                    put("private_key_passphrase", profile.privateKeyPassphrase)
+                }
+
+                if (profile.hostKey.isNotBlank()) {
+                    put(
+                        "host_key",
+                        JSONArray(
+                            profile.hostKey
+                                .split(",", "\\n")
+                                .map { it.trim() }
+                                .filter { it.isNotBlank() },
+                        ),
+                    )
+                }
+
+                if (profile.hostKeyAlgorithms.isNotBlank()) {
+                    put(
+                        "host_key_algorithms",
+                        JSONArray(
+                            profile.hostKeyAlgorithms
+                                .split(",", "\\n")
+                                .map { it.trim() }
+                                .filter { it.isNotBlank() },
+                        ),
+                    )
+                }
+
+                if (profile.clientVersion.isNotBlank()) {
+                    put("client_version", profile.clientVersion)
+                }
+
+                if (profile.cipher.isNotBlank()) {
+                    put(
+                        "cipher",
+                        JSONArray(
+                            profile.cipher
+                                .split(",", "\\n")
+                                .map { it.trim() }
+                                .filter { it.isNotBlank() },
+                        ),
+                    )
+                }
+
+                if (profile.mac.isNotBlank()) {
+                    put(
+                        "mac",
+                        JSONArray(
+                            profile.mac
+                                .split(",", "\\n")
+                                .map { it.trim() }
+                                .filter { it.isNotBlank() },
+                        ),
+                    )
+                }
+
+                if (profile.kexAlgorithm.isNotBlank()) {
+                    put(
+                        "kex_algorithm",
+                        JSONArray(
+                            profile.kexAlgorithm
+                                .split(",", "\\n")
+                                .map { it.trim() }
+                                .filter { it.isNotBlank() },
+                        ),
+                    )
+                }
             }
 
         is OutboundProfile.ShadowTls -> JSONObject()

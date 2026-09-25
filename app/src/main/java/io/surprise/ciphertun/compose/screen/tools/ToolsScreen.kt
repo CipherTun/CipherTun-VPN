@@ -124,7 +124,7 @@ fun ToolsScreen(
                 modifier = Modifier
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                     .clickable {
-                        navController.navigate("tools/connectivity")
+                        navController.navigate("more/connectivity")
                     },
                 colors = ListItemDefaults.colors(
                     containerColor = Color.Transparent,

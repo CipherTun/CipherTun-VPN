@@ -58,8 +58,8 @@ fun TailscaleSSHPromptScreen(
 ) {
     val peer = viewModel.peer(endpointTag, peerId)
 
-    if (peer == null) {
-        LaunchedEffect(Unit) { navController.navigateUp() }
+    if (peer == null || peer.tailscaleIPs.isEmpty()) {
+        LaunchedEffect(peerId) { navController.navigateUp() }
         return
     }
 
@@ -223,7 +223,7 @@ fun TailscaleSSHPromptScreen(
                     TailscaleSSHPresentedSession(
                         endpointTag = endpointTag,
                         peerHostName = peer.hostName,
-                        peerAddress = peer.tailscaleIPs.first(),
+                        peerAddress = peer.tailscaleIPs.firstOrNull() ?: return@LaunchedEffect,
                         username = trimmedUsername,
                         terminalType = trimmedTerminalType,
                         hostKeys = peer.sshHostKeys,

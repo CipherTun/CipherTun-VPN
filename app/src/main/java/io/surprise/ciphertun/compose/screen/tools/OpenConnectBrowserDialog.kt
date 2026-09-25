@@ -497,7 +497,7 @@ private class OpenConnectWebViewBrowser(
         observedURLs.remove(url)
         observedURLs.add(url)
         while (observedURLs.size > MAXIMUM_OBSERVED_URL_COUNT) {
-            observedURLs.remove(observedURLs.first())
+            observedURLs.firstOrNull()?.let { observedURLs.remove(it) }
         }
     }
 

@@ -70,6 +70,14 @@ fun WizardCredentialFormScreen(
     var uuid by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var privateKey by remember { mutableStateOf("") }
+    var privateKeyPath by remember { mutableStateOf("") }
+    var privateKeyPassphrase by remember { mutableStateOf("") }
+    var hostKey by remember { mutableStateOf("") }
+    var hostKeyAlgorithms by remember { mutableStateOf("") }
+    var clientVersion by remember { mutableStateOf("") }
+    var sshCipher by remember { mutableStateOf("") }
+    var sshMac by remember { mutableStateOf("") }
+    var sshKexAlgorithm by remember { mutableStateOf("") }
     var publicKey by remember { mutableStateOf("") }
     var presharedKey by remember { mutableStateOf("") }
 
@@ -219,7 +227,17 @@ fun WizardCredentialFormScreen(
             )
             ProtocolType.SSH -> OutboundProfile.Ssh(
                 remark = remark, server = server, serverPort = portInt,
-                username = username, password = password, privateKey = privateKey,
+                username = username,
+                password = password,
+                privateKey = privateKey,
+                privateKeyPath = privateKeyPath,
+                privateKeyPassphrase = privateKeyPassphrase,
+                hostKey = hostKey,
+                hostKeyAlgorithms = hostKeyAlgorithms,
+                clientVersion = clientVersion,
+                cipher = sshCipher,
+                mac = sshMac,
+                kexAlgorithm = sshKexAlgorithm,
             )
             ProtocolType.SHADOWTLS -> OutboundProfile.ShadowTls(
                 remark = remark, server = server, serverPort = portInt,
@@ -467,14 +485,79 @@ fun WizardCredentialFormScreen(
                 }
 
                 ProtocolType.SSH -> FormSection {
-                    LabeledField("Username", username, onValueChange = { username = it })
                     LabeledField(
-                        "Password", password, onValueChange = { password = it },
+                        "Username",
+                        username,
+                        onValueChange = { username = it },
+                    )
+
+                    LabeledField(
+                        "Password (optional)",
+                        password,
+                        onValueChange = { password = it },
                         isPassword = true,
                     )
+
                     LabeledField(
-                        "Private Key (optional)", privateKey,
-                        onValueChange = { privateKey = it }, isPassword = true,
+                        "Private Key (optional)",
+                        privateKey,
+                        onValueChange = { privateKey = it },
+                        isPassword = true,
+                    )
+
+                    LabeledField(
+                        "Private Key Path (optional)",
+                        privateKeyPath,
+                        onValueChange = { privateKeyPath = it },
+                    )
+
+                    LabeledField(
+                        "Private Key Passphrase (optional)",
+                        privateKeyPassphrase,
+                        onValueChange = { privateKeyPassphrase = it },
+                        isPassword = true,
+                    )
+
+                    LabeledField(
+                        "Host Key (optional)",
+                        hostKey,
+                        onValueChange = { hostKey = it },
+                    )
+
+                    LabeledField(
+                        "Host Key Algorithms (optional)",
+                        hostKeyAlgorithms,
+                        onValueChange = { hostKeyAlgorithms = it },
+                    )
+
+                    LabeledField(
+                        "Client Version (optional)",
+                        clientVersion,
+                        onValueChange = { clientVersion = it },
+                    )
+
+                    LabeledField(
+                        "Cipher (optional)",
+                        sshCipher,
+                        onValueChange = { sshCipher = it },
+                    )
+
+                    LabeledField(
+                        "MAC (optional)",
+                        sshMac,
+                        onValueChange = { sshMac = it },
+                    )
+
+                    LabeledField(
+                        "KEX Algorithm (optional)",
+                        sshKexAlgorithm,
+                        onValueChange = { sshKexAlgorithm = it },
+                    )
+
+                    Text(
+                        "For algorithm lists, separate multiple values with commas.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 

@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import io.surprise.ciphertun.bg.ParceledListSlice
 import io.surprise.ciphertun.xposed.HookStatusKeys
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -22,6 +25,16 @@ object HookStatusClient {
     }
 
     fun refresh() {
+        refreshBlocking()
+    }
+
+    suspend fun refreshAsync() {
+        withContext(Dispatchers.IO) {
+            refreshBlocking()
+        }
+    }
+
+    private fun refreshBlocking() {
         val context = appContext ?: return
 
         try {
@@ -39,13 +52,12 @@ object HookStatusClient {
                 try {
                     data.writeInterfaceToken(HookStatusKeys.DESCRIPTOR)
 
-                    val ok =
-                        binder.transact(
-                            HookStatusKeys.TRANSACTION_STATUS,
-                            data,
-                            reply,
-                            0,
-                        )
+                    val ok = binder.transact(
+                        HookStatusKeys.TRANSACTION_STATUS,
+                        data,
+                        reply,
+                        0,
+                    )
 
                     if (!ok) {
                         statusFlow.value = null
@@ -54,13 +66,12 @@ object HookStatusClient {
 
                     reply.readException()
 
-                    statusFlow.value =
-                        Status(
-                            active = reply.readInt() != 0,
-                            lastPatchedAt = reply.readLong(),
-                            version = reply.readInt(),
-                            systemPid = reply.readInt(),
-                        )
+                    statusFlow.value = Status(
+                        active = reply.readInt() != 0,
+                        lastPatchedAt = reply.readLong(),
+                        version = reply.readInt(),
+                        systemPid = reply.readInt(),
+                    )
                 } catch (t: Throwable) {
                     statusFlow.value = null
                     android.util.Log.w(

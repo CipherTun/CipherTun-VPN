@@ -219,7 +219,7 @@ fun TailscaleSSHTerminalScreen(
                                                 TailscaleSSHPresentedSession(
                                                     endpointTag = endpointTag,
                                                     peerHostName = peer.hostName,
-                                                    peerAddress = peer.tailscaleIPs.first(),
+                                                    peerAddress = peer.tailscaleIPs.firstOrNull() ?: return@DropdownMenuItem,
                                                     username = rememberedUsernames[peer.stableID]?.takeIf { it.isNotBlank() }
                                                         ?: DEFAULT_SSH_USERNAME,
                                                     terminalType = rememberedTerminalTypes[peer.stableID]?.takeIf { it.isNotBlank() }

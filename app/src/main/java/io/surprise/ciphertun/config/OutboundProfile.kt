@@ -131,7 +131,15 @@ sealed class OutboundProfile {
         override val serverPort: Int = ProtocolType.SSH.defaultPort,
         val username: String = "",
         val password: String = "",
-        val privateKey: String = ""
+        val privateKey: String = "",
+        val privateKeyPath: String = "",
+        val privateKeyPassphrase: String = "",
+        val hostKey: String = "",
+        val hostKeyAlgorithms: String = "",
+        val clientVersion: String = "",
+        val cipher: String = "",
+        val mac: String = "",
+        val kexAlgorithm: String = ""
     ) : OutboundProfile()
 
     data class ShadowTls(

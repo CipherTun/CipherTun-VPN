@@ -92,8 +92,10 @@ fun OOMReportListScreen(
         OOMReportManager.refresh()
         val storedLimit = Settings.oomMemoryLimitMB
         if (!memoryLimitOptions.contains(storedLimit)) {
-            oomMemoryLimitMB = memoryLimitOptions.first()
-            Settings.oomMemoryLimitMB = oomMemoryLimitMB
+            memoryLimitOptions.firstOrNull()?.let { defaultLimit ->
+                oomMemoryLimitMB = defaultLimit
+                Settings.oomMemoryLimitMB = defaultLimit
+            }
         }
         isLoading = false
     }

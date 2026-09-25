@@ -144,7 +144,7 @@ fun PrivilegeSettingsScreen(navController: NavController, serviceStatus: Status 
     }
 
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        HookStatusClient.refresh()
+        HookStatusClient.refreshAsync()
     }
 
     val hasPendingDowngrade = HookModuleUpdateNotifier.isDowngrade(systemHookStatus)

@@ -67,8 +67,9 @@ fun SettingsScreen(navController: NavController) {
     val hookStatus by HookStatusClient.status.collectAsState()
     val hasPendingPrivilegeDowngrade = HookModuleUpdateNotifier.isDowngrade(hookStatus)
     val hasPendingPrivilegeUpdate = HookModuleUpdateNotifier.isUpgrade(hookStatus)
+
     LaunchedEffect(Unit) {
-        HookStatusClient.refresh()
+        HookStatusClient.refreshAsync()
     }
 
     val scaffoldPadding = LocalScaffoldPadding.current

@@ -32,8 +32,8 @@ object AppLifecycleObserver : DefaultLifecycleObserver {
     fun register(context: Context) {
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
 
-        val powerManager = context.getSystemService<PowerManager>()!!
-        _isScreenOn.value = powerManager.isInteractive
+        val powerManager = context.getSystemService<PowerManager>()
+        _isScreenOn.value = powerManager?.isInteractive ?: true
 
         context.registerReceiver(
             screenReceiver,

@@ -59,7 +59,7 @@ object TailscaleSSHSessionStore : GhosttyTerminalSession.EventListener {
         // Covers exits libghostty reports on its own, such as a transport
         // failure, in addition to the ones the SSH handler reports.
         managed.exitWatcher = scope.launch {
-            managed.terminalSession.exitStatus.filterNotNull().first()
+            managed.terminalSession.exitStatus.filterNotNull().firstOrNull()
             onSessionExited(managed)
         }
 

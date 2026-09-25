@@ -408,14 +408,14 @@ internal fun handleSSHNavigation(
     endpointTag: String,
 ) {
     val quickConnectPeers = Settings.tailscaleSSHQuickConnectPeers
-    if (quickConnectPeers.contains(peer.stableID)) {
+    if (quickConnectPeers.contains(peer.stableID) && peer.tailscaleIPs.isNotEmpty()) {
         val usernames = Settings.tailscaleSSHRememberedUsernames
         val terminalTypes = Settings.tailscaleSSHRememberedTerminalTypes
         sshSharedViewModel.setPendingSession(
             TailscaleSSHPresentedSession(
                 endpointTag = endpointTag,
                 peerHostName = peer.hostName,
-                peerAddress = peer.tailscaleIPs.first(),
+                peerAddress = peer.tailscaleIPs.firstOrNull() ?: return,
                 username = usernames[peer.stableID]?.takeIf { it.isNotBlank() } ?: DEFAULT_SSH_USERNAME,
                 terminalType = terminalTypes[peer.stableID]?.takeIf { it.isNotBlank() }
                     ?: DEFAULT_SSH_TERMINAL_TYPE,
