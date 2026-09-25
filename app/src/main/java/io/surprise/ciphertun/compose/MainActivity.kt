@@ -1385,7 +1385,25 @@ class MainActivity :
                     snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
                     topBar = topBarContent,
                     bottomBar = {
-                        if (!isSubScreen) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            // ========================================================
+                            // BOTTOM BANNER
+                            // Directly above the bottom navigation.
+                            // ========================================================
+                            CipherTunBanner(
+                                bannerAdUnitId = AdsConfig.BANNER_SECONDARY,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .windowInsetsPadding(
+                                        WindowInsets.safeDrawing.only(
+                                            WindowInsetsSides.Bottom,
+                                        ),
+                                    ),
+                            )
+
+                            if (!isSubScreen) {
                             val hasUpdate by UpdateState.hasUpdate
                             NavigationBar {
                                 bottomNavigationScreens.forEach { screen ->
@@ -1428,26 +1446,12 @@ class MainActivity :
                                     )
                                 }
                             }
+                            }
                         }
                     },
                 ) { paddingValues ->
                     scaffoldContent(paddingValues)
                 }
-
-                // ========================================================
-                // BOTTOM BANNER
-                // It remains above the app navigation bar.
-                // ========================================================
-                CipherTunBanner(
-                    bannerAdUnitId = AdsConfig.BANNER_SECONDARY,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(
-                            WindowInsets.safeDrawing.only(
-                                WindowInsetsSides.Bottom,
-                            ),
-                        ),
-                )
             }
         }
 
