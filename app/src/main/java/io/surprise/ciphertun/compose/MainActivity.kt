@@ -1303,8 +1303,7 @@ class MainActivity :
                 // TOP BANNER
                 // Protected by the status-bar safe inset.
                 // ========================================================
-                CipherTunBanner(
-                    bannerAdUnitId = AdsConfig.BANNER_PRIMARY,
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .windowInsetsPadding(
@@ -1312,7 +1311,12 @@ class MainActivity :
                                 WindowInsetsSides.Top,
                             ),
                         ),
-                )
+                ) {
+                    CipherTunBanner(
+                        bannerAdUnitId = AdsConfig.BANNER_PRIMARY,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
 
                 // ========================================================
                 // ALL APP SCREENS
@@ -1394,13 +1398,13 @@ class MainActivity :
                             // ========================================================
                             CipherTunBanner(
                                 bannerAdUnitId = AdsConfig.BANNER_SECONDARY,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .windowInsetsPadding(
-                                        WindowInsets.safeDrawing.only(
-                                            WindowInsetsSides.Bottom,
-                                        ),
-                                    ),
+                                /*
+                                 * Do NOT add safeDrawing.Bottom here.
+                                 * NavigationBar handles the bottom system
+                                 * inset itself. Adding it to the banner
+                                 * creates unused vertical space.
+                                 */
+                                modifier = Modifier.fillMaxWidth(),
                             )
 
                             if (!isSubScreen) {

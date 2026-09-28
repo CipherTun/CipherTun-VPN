@@ -20,10 +20,19 @@ import java.util.Date
 object AdsManager {
     private const val TAG = "CipherTunAds"
 
-    private const val INTERSTITIAL_COOLDOWN_MS = 30_000L
-    private const val APP_OPEN_COOLDOWN_MS = 60_000L
-    private const val RETRY_BASE_MS = 10_000L
-    private const val RETRY_MAX_MS = 60_000L
+    /*
+     * Fullscreen ads are eligible again after 20 seconds, but they
+     * are still shown only from valid app/VPN transition triggers.
+     */
+    private const val INTERSTITIAL_COOLDOWN_MS = 20_000L
+    private const val APP_OPEN_COOLDOWN_MS = 20_000L
+
+    /*
+     * Failed fullscreen requests retry aggressively:
+     * 2s -> 4s -> 8s -> 16s -> 20s -> 20s...
+     */
+    private const val RETRY_BASE_MS = 2_000L
+    private const val RETRY_MAX_MS = 20_000L
     private const val APP_OPEN_MAX_AGE_MS = 4L * 60L * 60L * 1000L
 
     private val mainHandler = Handler(Looper.getMainLooper())
