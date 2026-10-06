@@ -257,7 +257,7 @@ jobs:
 
           "$SDK/cmdline-tools/latest/bin/sdkmanager" --channel=1 \
             "platform-tools" \
-            "platforms;android-37" \
+            "platforms;android-37@37.1" \
             "build-tools;36.0.0"
 
       - name: Verify Android toolchain
