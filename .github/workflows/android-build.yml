@@ -68,14 +68,20 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android NDK
-        uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        with:
-          ndk-version: ${{ env.NDK_VERSION }}
-          add-to-path: true
-          link-to-sdk: true
-          local-cache: true
+      - name: Install Android NDK
+        run: |
+          set -euxo pipefail
+
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+
+          "$SDK/cmdline-tools/latest/bin/sdkmanager"             "ndk;${NDK_VERSION}"
+
+          test -d "$SDK/ndk/${NDK_VERSION}"
+
+          echo "ANDROID_NDK_HOME=$SDK/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "$SDK/ndk/${NDK_VERSION}" >> "$GITHUB_PATH"
 
       - name: Verify build toolchain
         run: |
@@ -84,7 +90,7 @@ jobs:
           java -version
           go version
 
-          NDK_PATH="${{ steps.setup-ndk.outputs.ndk-path }}"
+          NDK_PATH="$ANDROID_NDK_HOME"
           test -d "$NDK_PATH"
 
           echo "NDK_PATH=$NDK_PATH"
@@ -95,7 +101,8 @@ jobs:
         run: |
           set -euxo pipefail
 
-          export ANDROID_NDK_HOME="${{ steps.setup-ndk.outputs.ndk-path }}"
+          export ANDROID_NDK_HOME="$ANDROID_NDK_HOME"
+          export PATH="$ANDROID_NDK_HOME:$PATH"
           export PATH="$PATH:$(go env GOPATH)/bin"
 
           make lib_install
@@ -225,14 +232,20 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android NDK
-        uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        with:
-          ndk-version: ${{ env.NDK_VERSION }}
-          add-to-path: true
-          link-to-sdk: true
-          local-cache: true
+      - name: Install Android NDK
+        run: |
+          set -euxo pipefail
+
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
+
+          yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+
+          "$SDK/cmdline-tools/latest/bin/sdkmanager"             "ndk;${NDK_VERSION}"
+
+          test -d "$SDK/ndk/${NDK_VERSION}"
+
+          echo "ANDROID_NDK_HOME=$SDK/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "$SDK/ndk/${NDK_VERSION}" >> "$GITHUB_PATH"
 
       - name: Install required Android SDK packages
         run: |
@@ -257,7 +270,7 @@ jobs:
           test -d "$SDK/platforms/android-37"
           test -d "$SDK/build-tools/37.0.0"
 
-          NDK_PATH="${{ steps.setup-ndk.outputs.ndk-path }}"
+          NDK_PATH="$ANDROID_NDK_HOME"
           test -d "$NDK_PATH"
 
           echo "Android SDK: $SDK"
@@ -331,7 +344,7 @@ jobs:
         run: |
           set -euxo pipefail
 
-          export ANDROID_NDK_HOME="${{ steps.setup-ndk.outputs.ndk-path }}"
+          export ANDROID_NDK_HOME="$ANDROID_NDK_HOME"
           export PATH="$ANDROID_NDK_HOME:$PATH"
 
           gradle \
