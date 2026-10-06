@@ -8,7 +8,9 @@ data class TlsConfig(
     val utlsFingerprint: String = "",
     val realityPublicKey: String = "",
     val realityShortId: String = "",
-    val pinnedCertSha256: List<String> = emptyList()
+    val pinnedCertSha256: List<String> = emptyList(),
+    // sing-box 1.15.0: pin the complete DER certificate SHA-256.
+    val certificateSha256: List<String> = emptyList()
 )
 
 sealed class TransportConfig {
@@ -122,6 +124,10 @@ sealed class OutboundProfile {
         override val serverPort: Int = ProtocolType.HTTP.defaultPort,
         val username: String = "",
         val password: String = "",
+        val path: String = "",
+        val headers: Map<String, String> = emptyMap(),
+        val version: Int = 0,
+        val disableVersionFallback: Boolean = false,
         val tls: TlsConfig = TlsConfig(enabled = false)
     ) : OutboundProfile()
 
@@ -187,6 +193,39 @@ sealed class OutboundProfile {
     // with. Skips static-key mode (legacy/rare) and the ~30 tuning fields
     // (MSS, fragment, replay window, compression, renegotiation, routes)
     // that sing-box has sensible defaults for.
+    // sing-box 1.15.0 MASQUE client endpoint.
+    data class MasqueClient(
+        override val remark: String = "",
+        override val server: String = "",
+        override val serverPort: Int = ProtocolType.MASQUE.defaultPort,
+        val username: String = "",
+        val password: String = "",
+        val path: String = "",
+        val headers: Map<String, String> = emptyMap(),
+        val version: Int = 0,
+        val disableVersionFallback: Boolean = false,
+        val advertiseRoutes: List<String> = emptyList(),
+        val system: Boolean = false,
+        val name: String = "",
+        val mtu: Int = 1280,
+        val onDemand: Boolean = false,
+        val tls: TlsConfig = TlsConfig()
+    ) : OutboundProfile()
+
+    // sing-box 1.15.0 Tailcat outbound.
+    data class Tailcat(
+        override val remark: String = "",
+        override val server: String = "",
+        override val serverPort: Int = 0,
+        val privateKey: String = "",
+        val serverPublicKey: String = "",
+        val serverDiscoKey: String = "",
+        val preSharedKey: String = "",
+        val derpMapUrl: String = "",
+        val derpRegion: Int = 0,
+        val derpServersJson: String = ""
+    ) : OutboundProfile()
+
     data class OpenVpnClient(
         override val remark: String = "",
         override val server: String = "",

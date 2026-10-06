@@ -138,6 +138,38 @@ fun WizardCredentialFormScreen(
     var realityPublicKey by remember { mutableStateOf("") }
     var realityShortId by remember { mutableStateOf("") }
     var pinnedCertSha256 by remember { mutableStateOf("") }
+    var certificateSha256 by remember { mutableStateOf("") }
+
+    // Alpha.10 HTTP proxy fields.
+    var httpPath by remember { mutableStateOf("") }
+    var httpHeaders by remember { mutableStateOf("") }
+    var httpVersion by remember { mutableStateOf("auto") }
+    var httpDisableFallback by remember { mutableStateOf(false) }
+
+    // Alpha.10 MASQUE fields.
+    var masquePath by remember { mutableStateOf("") }
+    var masqueHeaders by remember { mutableStateOf("") }
+    var masqueVersion by remember { mutableStateOf("auto") }
+    var masqueDisableFallback by remember { mutableStateOf(false) }
+    var masqueAdvertiseRoutes by remember { mutableStateOf("") }
+    var masqueSystem by remember { mutableStateOf(false) }
+    var masqueName by remember { mutableStateOf("") }
+    var masqueMtu by remember { mutableStateOf("1280") }
+    var masqueOnDemand by remember { mutableStateOf(false) }
+    var masqueAdvertiseRoutes by remember { mutableStateOf("") }
+    var masqueSystem by remember { mutableStateOf(false) }
+    var masqueName by remember { mutableStateOf("") }
+    var masqueMtu by remember { mutableStateOf("1280") }
+    var masqueOnDemand by remember { mutableStateOf(false) }
+
+    // Alpha.10 Tailcat fields.
+    var tailcatPrivateKey by remember { mutableStateOf("") }
+    var tailcatServerPublicKey by remember { mutableStateOf("") }
+    var tailcatServerDiscoKey by remember { mutableStateOf("") }
+    var tailcatPreSharedKey by remember { mutableStateOf("") }
+    var tailcatDerpMapUrl by remember { mutableStateOf("") }
+    var tailcatDerpRegion by remember { mutableStateOf("0") }
+    var tailcatDerpServers by remember { mutableStateOf("") }
 
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -167,6 +199,7 @@ fun WizardCredentialFormScreen(
         realityPublicKey = if (tlsType == "reality") realityPublicKey else "",
         realityShortId = if (tlsType == "reality") realityShortId else "",
         pinnedCertSha256 = pinnedCertSha256.split(",", "\n").map { it.trim() }.filter { it.isNotBlank() },
+        certificateSha256 = certificateSha256.split(",", "\n").map { it.trim() }.filter { it.isNotBlank() },
     )
 
     fun buildOutboundProfile(): OutboundProfile {
@@ -223,7 +256,36 @@ fun WizardCredentialFormScreen(
             )
             ProtocolType.HTTP -> OutboundProfile.Http(
                 remark = remark, server = server, serverPort = portInt,
-                username = username, password = password, tls = tls,
+                username = username, password = password,
+                path = httpPath,
+                headers = parseHeaders(httpHeaders),
+                version = parseHttpVersion(httpVersion),
+                disableVersionFallback = httpDisableFallback,
+                tls = tls,
+            )
+            ProtocolType.MASQUE -> OutboundProfile.MasqueClient(
+                remark = remark, server = server, serverPort = portInt,
+                username = username, password = password,
+                path = masquePath,
+                headers = parseHeaders(masqueHeaders),
+                version = parseHttpVersion(masqueVersion),
+                disableVersionFallback = masqueDisableFallback,
+                advertiseRoutes = parseCsvLines(masqueAdvertiseRoutes),
+                system = masqueSystem,
+                name = masqueName,
+                mtu = masqueMtu.toIntOrNull() ?: 1280,
+                onDemand = masqueOnDemand,
+                tls = tls,
+            )
+            ProtocolType.TAILCAT -> OutboundProfile.Tailcat(
+                remark = remark,
+                privateKey = tailcatPrivateKey,
+                serverPublicKey = tailcatServerPublicKey,
+                serverDiscoKey = tailcatServerDiscoKey,
+                preSharedKey = tailcatPreSharedKey,
+                derpMapUrl = tailcatDerpMapUrl,
+                derpRegion = tailcatDerpRegion.toIntOrNull() ?: 0,
+                derpServersJson = tailcatDerpServers,
             )
             ProtocolType.SSH -> OutboundProfile.Ssh(
                 remark = remark, server = server, serverPort = portInt,
@@ -278,7 +340,11 @@ fun WizardCredentialFormScreen(
             errorMessage = "Give this server a name."
             return
         }
-        if (protocol != ProtocolType.TOR && protocol != ProtocolType.WIREGUARD && server.isBlank()) {
+        if (protocol != ProtocolType.TOR &&
+            protocol != ProtocolType.WIREGUARD &&
+            protocol != ProtocolType.TAILCAT &&
+            server.isBlank()
+        ) {
             errorMessage = "Server address is required."
             return
         }
@@ -469,6 +535,29 @@ fun WizardCredentialFormScreen(
                         "Password (optional)", password, onValueChange = { password = it },
                         isPassword = true,
                     )
+                    LabeledField("Path (optional)", httpPath, onValueChange = { httpPath = it })
+                    MultilineField(
+                        "Headers — one Name: Value per line",
+                        httpHeaders,
+                        onValueChange = { httpHeaders = it },
+                    )
+                    DropdownField(
+                        "HTTP version",
+                        httpVersion,
+                        listOf("auto", "1", "2", "3"),
+                        onSelected = { httpVersion = it },
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Disable HTTP version fallback")
+                        Switch(
+                            checked = httpDisableFallback,
+                            onCheckedChange = { httpDisableFallback = it },
+                        )
+                    }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -482,6 +571,130 @@ fun WizardCredentialFormScreen(
                             },
                         )
                     }
+                }
+
+                ProtocolType.MASQUE -> FormSection {
+                    LabeledField(
+                        "Username (optional)",
+                        username,
+                        onValueChange = { username = it },
+                    )
+                    LabeledField(
+                        "Password (optional)",
+                        password,
+                        onValueChange = { password = it },
+                        isPassword = true,
+                    )
+                    LabeledField(
+                        "Path (optional)",
+                        masquePath,
+                        onValueChange = { masquePath = it },
+                    )
+                    MultilineField(
+                        "Headers — one Name: Value per line",
+                        masqueHeaders,
+                        onValueChange = { masqueHeaders = it },
+                    )
+                    DropdownField(
+                        "HTTP version",
+                        masqueVersion,
+                        listOf("auto", "1", "2", "3"),
+                        onSelected = { masqueVersion = it },
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Disable HTTP version fallback")
+                        Switch(
+                            checked = masqueDisableFallback,
+                            onCheckedChange = { masqueDisableFallback = it },
+                        )
+                    }
+                    MultilineField(
+                        "Advertise routes — one CIDR per line",
+                        masqueAdvertiseRoutes,
+                        onValueChange = { masqueAdvertiseRoutes = it },
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("System interface")
+                        Switch(
+                            checked = masqueSystem,
+                            onCheckedChange = { masqueSystem = it },
+                        )
+                    }
+                    LabeledField(
+                        "Interface name (optional)",
+                        masqueName,
+                        onValueChange = { masqueName = it },
+                    )
+                    LabeledField(
+                        "MTU",
+                        masqueMtu,
+                        onValueChange = { masqueMtu = it },
+                        keyboardType = KeyboardType.Number,
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("On demand")
+                        Switch(
+                            checked = masqueOnDemand,
+                            onCheckedChange = { masqueOnDemand = it },
+                        )
+                    }
+                }
+
+                ProtocolType.TAILCAT -> FormSection {
+                    MultilineField(
+                        "Private key (optional)",
+                        tailcatPrivateKey,
+                        onValueChange = { tailcatPrivateKey = it },
+                    )
+                    LabeledField(
+                        "Server public key",
+                        tailcatServerPublicKey,
+                        onValueChange = { tailcatServerPublicKey = it },
+                    )
+                    LabeledField(
+                        "Server disco public key",
+                        tailcatServerDiscoKey,
+                        onValueChange = { tailcatServerDiscoKey = it },
+                    )
+                    LabeledField(
+                        "Pre-shared key (optional)",
+                        tailcatPreSharedKey,
+                        onValueChange = { tailcatPreSharedKey = it },
+                        isPassword = true,
+                    )
+                    LabeledField(
+                        "DERP map URL (optional)",
+                        tailcatDerpMapUrl,
+                        onValueChange = { tailcatDerpMapUrl = it },
+                    )
+                    LabeledField(
+                        "DERP region (0 = map default)",
+                        tailcatDerpRegion,
+                        onValueChange = { tailcatDerpRegion = it },
+                        keyboardType = KeyboardType.Number,
+                    )
+                    MultilineField(
+                        "Custom DERP servers JSON (optional)",
+                        tailcatDerpServers,
+                        onValueChange = { tailcatDerpServers = it },
+                    )
+                    Text(
+                        "Use custom DERP servers instead of DERP map/region. Enter a valid sing-box DERPNode JSON array.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
                 ProtocolType.SSH -> FormSection {
@@ -848,8 +1061,14 @@ fun WizardCredentialFormScreen(
                             onValueChange = { tlsFingerprint = it },
                         )
                         LabeledField(
-                            "Pinned Cert SHA-256 (base64, comma-separated, optional)", pinnedCertSha256,
+                            "Pinned Cert SHA-256 (base64, comma-separated, optional)",
+                            pinnedCertSha256,
                             onValueChange = { pinnedCertSha256 = it },
+                        )
+                        LabeledField(
+                            "Certificate SHA-256 (whole certificate, base64, optional)",
+                            certificateSha256,
+                            onValueChange = { certificateSha256 = it },
                         )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -888,6 +1107,32 @@ fun WizardCredentialFormScreen(
     }
 }
 
+private fun parseHttpVersion(value: String): Int = when (value) {
+    "1" -> 1
+    "2" -> 2
+    "3" -> 3
+    else -> 0
+}
+
+private fun parseHeaders(value: String): Map<String, String> =
+    value.lineSequence()
+        .mapNotNull { line ->
+            val index = line.indexOf(':')
+            if (index <= 0) {
+                null
+            } else {
+                val name = line.substring(0, index).trim()
+                val headerValue = line.substring(index + 1).trim()
+                if (name.isBlank()) null else name to headerValue
+            }
+        }
+        .toMap()
+
+private fun parseCsvLines(value: String): List<String> =
+    value.split(',', '\n')
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+
 private fun protocolUsesTlsByDefault(protocol: ProtocolType): Boolean = when (protocol) {
     ProtocolType.SHADOWSOCKS, ProtocolType.WIREGUARD, ProtocolType.SOCKS,
     ProtocolType.HTTP, ProtocolType.SSH, ProtocolType.TOR, ProtocolType.SNELL,
@@ -898,7 +1143,8 @@ private fun protocolUsesTlsByDefault(protocol: ProtocolType): Boolean = when (pr
 private fun protocolSupportsTls(protocol: ProtocolType): Boolean = when (protocol) {
     ProtocolType.VMESS, ProtocolType.VLESS, ProtocolType.TROJAN,
     ProtocolType.HYSTERIA, ProtocolType.HYSTERIA2, ProtocolType.TUIC,
-    ProtocolType.SHADOWTLS, ProtocolType.ANYTLS -> true
+    ProtocolType.SHADOWTLS, ProtocolType.ANYTLS,
+    ProtocolType.HTTP, ProtocolType.MASQUE -> true
     else -> false
 }
 

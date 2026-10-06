@@ -17,7 +17,9 @@ enum class ProtocolType(val displayName: String, val defaultPort: Int) {
     TOR("Tor", 0),
     SNELL("Snell", 1080),
     OPENVPN("OpenVPN", 1194),
-    OPENCONNECT("OpenConnect", 443);
+    OPENCONNECT("OpenConnect", 443),
+    MASQUE("MASQUE", 443),
+    TAILCAT("Tailcat", 0);
 
     companion object {
         val pickerOrder = listOf(
@@ -25,6 +27,7 @@ enum class ProtocolType(val displayName: String, val defaultPort: Int) {
             HYSTERIA2, HYSTERIA, TUIC, WIREGUARD,
             ANYTLS, SHADOWTLS, SNELL, SSH, TOR,
             OPENVPN, OPENCONNECT,
+            MASQUE, TAILCAT,
             SOCKS, HTTP
         )
     }

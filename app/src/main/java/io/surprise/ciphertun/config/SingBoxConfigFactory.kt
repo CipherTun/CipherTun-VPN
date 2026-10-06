@@ -7,7 +7,7 @@ object SingBoxConfigFactory {
 
     private fun isEndpointProfile(profile: OutboundProfile): Boolean =
         profile is OutboundProfile.OpenVpnClient || profile is OutboundProfile.OpenConnectClient ||
-            profile is OutboundProfile.WireGuard
+            profile is OutboundProfile.WireGuard || profile is OutboundProfile.MasqueClient
 
     fun build(profile: OutboundProfile): String {
         val root = JSONObject()
@@ -302,7 +302,33 @@ object SingBoxConfigFactory {
             .apply {
                 if (profile.username.isNotBlank()) put("username", profile.username)
                 if (profile.password.isNotBlank()) put("password", profile.password)
+                if (profile.path.isNotBlank()) put("path", profile.path)
+                if (profile.headers.isNotEmpty()) put("headers", JSONObject(profile.headers))
+                if (profile.version != 0) put("version", profile.version)
+                if (profile.disableVersionFallback) {
+                    put("disable_version_fallback", true)
+                }
                 putTls(profile.tls)
+            }
+
+        is OutboundProfile.Tailcat -> JSONObject()
+            .put("type", "tailcat")
+            .put("private_key", profile.privateKey)
+            .put("server_public_key", profile.serverPublicKey)
+            .put("server_disco_key", profile.serverDiscoKey)
+            .apply {
+                if (profile.preSharedKey.isNotBlank()) {
+                    put("pre_shared_key", profile.preSharedKey)
+                }
+                if (profile.derpMapUrl.isNotBlank()) {
+                    put("derp_map_url", profile.derpMapUrl)
+                }
+                if (profile.derpRegion > 0) {
+                    put("derp_region", profile.derpRegion)
+                }
+                if (profile.derpServersJson.isNotBlank()) {
+                    put("derp_servers", JSONArray(profile.derpServersJson))
+                }
             }
 
         is OutboundProfile.Ssh -> JSONObject()
@@ -506,6 +532,29 @@ object SingBoxConfigFactory {
                 },
             )
 
+        is OutboundProfile.MasqueClient -> JSONObject()
+            .put("type", "masque-client")
+            .put("server", profile.server)
+            .put("server_port", profile.serverPort)
+            .apply {
+                if (profile.username.isNotBlank()) put("username", profile.username)
+                if (profile.password.isNotBlank()) put("password", profile.password)
+                if (profile.path.isNotBlank()) put("path", profile.path)
+                if (profile.headers.isNotEmpty()) put("headers", JSONObject(profile.headers))
+                if (profile.version != 0) put("version", profile.version)
+                if (profile.disableVersionFallback) {
+                    put("disable_version_fallback", true)
+                }
+                if (profile.advertiseRoutes.isNotEmpty()) {
+                    put("advertise_routes", JSONArray(profile.advertiseRoutes))
+                }
+                if (profile.system) put("system", true)
+                if (profile.name.isNotBlank()) put("name", profile.name)
+                if (profile.mtu > 0) put("mtu", profile.mtu)
+                if (profile.onDemand) put("on_demand", true)
+                putTls(profile.tls)
+            }
+
         is OutboundProfile.OpenConnectClient -> JSONObject()
             .put("type", "openconnect")
             .put("server", profile.server)
@@ -559,6 +608,9 @@ object SingBoxConfigFactory {
         }
         if (tls.pinnedCertSha256.isNotEmpty()) {
             tlsJson.put("certificate_public_key_sha256", JSONArray(tls.pinnedCertSha256))
+        }
+        if (tls.certificateSha256.isNotEmpty()) {
+            tlsJson.put("certificate_sha256", JSONArray(tls.certificateSha256))
         }
         put("tls", tlsJson)
     }
