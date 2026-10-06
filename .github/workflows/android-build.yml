@@ -76,7 +76,7 @@ jobs:
 
           yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
 
-          "$SDK/cmdline-tools/latest/bin/sdkmanager"             "ndk;${NDK_VERSION}"
+          "$SDK/cmdline-tools/latest/bin/sdkmanager --channel=1"             "ndk;${NDK_VERSION}"
 
           test -d "$SDK/ndk/${NDK_VERSION}"
 
@@ -240,7 +240,7 @@ jobs:
 
           yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
 
-          "$SDK/cmdline-tools/latest/bin/sdkmanager"             "ndk;${NDK_VERSION}"
+          "$SDK/cmdline-tools/latest/bin/sdkmanager --channel=1"             "ndk;${NDK_VERSION}"
 
           test -d "$SDK/ndk/${NDK_VERSION}"
 
@@ -255,7 +255,7 @@ jobs:
 
           yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
 
-          "$SDK/cmdline-tools/latest/bin/sdkmanager" \
+          "$SDK/cmdline-tools/latest/bin/sdkmanager --channel=1" \
             "platform-tools" \
             "platforms;android-37" \
             "build-tools;36.0.0"
