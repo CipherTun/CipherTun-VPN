@@ -59,7 +59,7 @@ fun getVersionProps(propName: String): String {
 
 android {
     namespace = "io.surprise.ciphertun"
-    compileSdk = 37
+    compileSdk = 36
     compileSdkMinor = 1
 
     ndkVersion = "28.2.13676358"
@@ -74,7 +74,7 @@ android {
     defaultConfig {
         applicationId = "io.surprise.ciphertun"
         minSdk = 24
-        targetSdk = 37
+        targetSdk = 36
         versionCode = getVersionProps("VERSION_CODE").toInt()
         versionName = getVersionProps("VERSION_NAME")
         base.archivesName.set("SFA-${versionName}")

@@ -15,7 +15,7 @@ env:
   SING_BOX_COMMIT: "c992297988288565a24a6d36e2cf4d77cb835fcd"
   GO_VERSION: "1.26.8"
   NDK_VERSION: "28.2.13676358"
-  GRADLE_VERSION: "8.13"
+  GRADLE_VERSION: "9.6.0"
 
 permissions:
   contents: read
@@ -257,8 +257,8 @@ jobs:
 
           "$SDK/cmdline-tools/latest/bin/sdkmanager" \
             "platform-tools" \
-            "platforms;android-37" \
-            "build-tools;37.0.0"
+            "platforms;android-36" \
+            "build-tools;36.0.0"
 
       - name: Verify Android toolchain
         run: |
@@ -267,8 +267,8 @@ jobs:
           SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
 
           test -d "$SDK"
-          test -d "$SDK/platforms/android-37"
-          test -d "$SDK/build-tools/37.0.0"
+          test -d "$SDK/platforms/android-36"
+          test -d "$SDK/build-tools/36.0.0"
 
           NDK_PATH="$ANDROID_NDK_HOME"
           test -d "$NDK_PATH"
@@ -294,7 +294,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          gradle-version: "8.13"
+          gradle-version: "9.6.0"
           cache-disabled: false
 
       - name: Verify Gradle
