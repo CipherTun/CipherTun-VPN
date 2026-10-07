@@ -156,11 +156,6 @@ fun WizardCredentialFormScreen(
     var masqueName by remember { mutableStateOf("") }
     var masqueMtu by remember { mutableStateOf("1280") }
     var masqueOnDemand by remember { mutableStateOf(false) }
-    var masqueAdvertiseRoutes by remember { mutableStateOf("") }
-    var masqueSystem by remember { mutableStateOf(false) }
-    var masqueName by remember { mutableStateOf("") }
-    var masqueMtu by remember { mutableStateOf("1280") }
-    var masqueOnDemand by remember { mutableStateOf(false) }
 
     // Alpha.10 Tailcat fields.
     var tailcatPrivateKey by remember { mutableStateOf("") }
