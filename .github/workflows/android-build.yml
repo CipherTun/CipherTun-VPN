@@ -267,8 +267,8 @@ jobs:
           SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME}}"
 
           test -d "$SDK"
-          test -d "$SDK/platforms/android-37"
-          test -d "$SDK/build-tools/36.0.0"
+          test -d "$SDK/platforms/android-37.1"
+          test -d "$SDK/build-tools/37.0.0"
 
           NDK_PATH="$ANDROID_NDK_HOME"
           test -d "$NDK_PATH"
