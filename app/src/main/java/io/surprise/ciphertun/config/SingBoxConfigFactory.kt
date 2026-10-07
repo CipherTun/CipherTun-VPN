@@ -311,6 +311,29 @@ object SingBoxConfigFactory {
                 putTls(profile.tls)
             }
 
+        is OutboundProfile.MasqueClient -> JSONObject()
+            .put("type", "masque")
+            .put("server", profile.server)
+            .put("server_port", profile.serverPort)
+            .apply {
+                if (profile.username.isNotBlank()) put("username", profile.username)
+                if (profile.password.isNotBlank()) put("password", profile.password)
+                if (profile.path.isNotBlank()) put("path", profile.path)
+                if (profile.headers.isNotEmpty()) put("headers", JSONObject(profile.headers))
+                if (profile.version != 0) put("version", profile.version)
+                if (profile.disableVersionFallback) {
+                    put("disable_version_fallback", true)
+                }
+                if (profile.advertiseRoutes.isNotEmpty()) {
+                    put("advertise_routes", JSONArray(profile.advertiseRoutes))
+                }
+                if (profile.system) put("system", true)
+                if (profile.name.isNotBlank()) put("name", profile.name)
+                if (profile.mtu > 0) put("mtu", profile.mtu)
+                if (profile.onDemand) put("on_demand", true)
+                putTls(profile.tls)
+            }
+
         is OutboundProfile.Tailcat -> JSONObject()
             .put("type", "tailcat")
             .put("private_key", profile.privateKey)
