@@ -60,6 +60,7 @@ fun getVersionProps(propName: String): String {
 android {
     namespace = "io.surprise.ciphertun"
     compileSdk = 37
+    compileSdkMinor = 1
 
     ndkVersion = "28.2.13676358"
 
@@ -76,7 +77,7 @@ android {
         targetSdk = 36
         versionCode = getVersionProps("VERSION_CODE").toInt()
         versionName = getVersionProps("VERSION_NAME")
-        base.archivesName.set("SFA-${versionName}")
+        base.archivesName.set("CipherTun-${versionName}")
     }
 
     signingConfigs {
