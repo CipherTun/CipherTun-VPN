@@ -1,10 +1,15 @@
-# SFA
+# CipherTun VPN
 
-Experimental Android client for sing-box, the universal proxy platform.
+Android VPN client built on [sing-box](https://github.com/SagerNet/sing-box), the universal proxy platform.
+
+CipherTun VPN is a fork of [SFA (sing-box for Android)](https://github.com/SagerNet/sing-box-for-android)
+and is not affiliated with or endorsed by the sing-box project.
 
 ## Documentation
 
-https://sing-box.sagernet.org/installation/clients/sfa/
+Core features and configuration follow upstream sing-box:
+
+https://sing-box.sagernet.org/
 
 ## License
 
