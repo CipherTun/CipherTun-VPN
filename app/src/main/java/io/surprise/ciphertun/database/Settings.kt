@@ -18,9 +18,17 @@ import io.surprise.ciphertun.ktx.map
 import io.surprise.ciphertun.ktx.string
 import io.surprise.ciphertun.ktx.stringSet
 import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import org.json.JSONObject
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.io.File
 
 object Settings {
@@ -155,18 +163,22 @@ object Settings {
         return true
     }
 
+    // sing-box accepts comments and trailing commas in configs, so org.json is too strict here.
+    @OptIn(ExperimentalSerializationApi::class)
+    private val lenientJson = Json {
+        allowComments = true
+        allowTrailingComma = true
+    }
+
     private suspend fun needVPNService(): Boolean {
         val selectedProfileId = selectedProfile
         if (selectedProfileId == -1L) return false
-        val profile = ProfileManager.get(selectedProfile) ?: return false
-        val content = JSONObject(File(profile.typed.path).readText())
-        val inbounds = content.getJSONArray("inbounds")
-        for (index in 0 until inbounds.length()) {
-            val inbound = inbounds.getJSONObject(index)
-            if (inbound.getString("type") == "tun") {
-                return true
-            }
+        val profile = ProfileManager.get(selectedProfileId) ?: return false
+        val text = withContext(Dispatchers.IO) { File(profile.typed.path).readText() }
+        val inbounds = lenientJson.parseToJsonElement(text)
+            .jsonObject["inbounds"] as? JsonArray ?: return false
+        return inbounds.any {
+            (it as? JsonObject)?.get("type")?.jsonPrimitive?.contentOrNull == "tun"
         }
-        return false
     }
 }
