@@ -1,0 +1,37 @@
+{
+  "outbounds": [
+    {
+      "type": "http",
+      "tag": "payload-proxy",
+      "server": "PROXY_HOST",
+      "server_port": 8080,
+      "headers": {
+        "Host": "HOST_HEADER_VALUE",
+        "User-Agent": "USER_AGENT_VALUE"
+      }
+    },
+    {
+      "type": "vless",
+      "tag": "vless-out",
+      "server": "TARGET_HOST",
+      "server_port": 443,
+      "uuid": "YOUR-UUID",
+      "tls": {
+        "enabled": true,
+        "server_name": "SNI_HOST",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        }
+      },
+      "detour": "payload-proxy"
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    }
+  ],
+  "route": {
+    "final": "vless-out"
+  }
+}
