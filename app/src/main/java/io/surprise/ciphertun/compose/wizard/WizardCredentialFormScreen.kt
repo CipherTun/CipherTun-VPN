@@ -1,7 +1,6 @@
 package io.surprise.ciphertun.compose.wizard
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.calculateBottomPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
