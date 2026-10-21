@@ -143,7 +143,7 @@ jobs:
           python3 cipher-tun-app/tools/apply_singbox_ssh_payload.py sing-box
           cp cipher-tun-app/tools/singbox-ssh-payload-tests.go.txt sing-box/common/dialer/payload_test.go
           cd sing-box
-          gofmt -w option/dialer.go common/dialer/dialer.go common/dialer/payload.go common/dialer/payload_test.go
+          gofmt -w option/outbound.go common/dialer/dialer.go common/dialer/payload.go common/dialer/payload_test.go
           go test ./option ./common/dialer ./protocol/ssh ./protocol/vmess ./protocol/vless ./protocol/trojan
 
       - name: Set up JDK 17

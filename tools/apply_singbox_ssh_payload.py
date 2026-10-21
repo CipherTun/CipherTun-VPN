@@ -23,7 +23,7 @@ def replace_once(path: str, old: str, new: str) -> None:
 
 
 replace_once(
-    "option/dialer.go",
+    "option/outbound.go",
     '''type DialerOptions struct {
 \tDetour string `json:"detour,omitempty" reference:"outbound"`
 \tAbstractDialerOptions
@@ -91,6 +91,10 @@ func NewPayloadDialer(upstream N.Dialer, options option.DialerOptions) N.Dialer 
 		split:    options.PayloadSplit,
 		delay:    time.Duration(options.PayloadDelayMS) * time.Millisecond,
 	}
+}
+
+func (d *payloadDialer) ListenPacket(ctx context.Context, destination M.Socksaddr) (net.PacketConn, error) {
+        return d.upstream.ListenPacket(ctx, destination)
 }
 
 func (d *payloadDialer) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
