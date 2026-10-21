@@ -1,14 +1,19 @@
 package io.surprise.ciphertun.ads
 
-import android.os.Handler
-import android.os.Looper
-import android.view.ViewGroup
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -19,13 +24,18 @@ import com.google.android.gms.ads.AdSize
 import com.google.android.gms.ads.AdView
 import com.google.android.gms.ads.LoadAdError
 import kotlin.math.roundToInt
+import android.os.Handler
+import android.os.Looper
+import android.view.ViewGroup
 
 @Composable
 fun CipherTunBanner(
     bannerAdUnitId: String,
     modifier: Modifier = Modifier,
+    respectTopSystemInset: Boolean = false,
 ) {
     val context = LocalContext.current
+    var isLoaded by remember(bannerAdUnitId) { mutableStateOf(false) }
 
     /*
      * Calculate the exact anchored-adaptive size once for this
@@ -93,6 +103,7 @@ fun CipherTunBanner(
         adView.adListener = object : AdListener() {
 
             override fun onAdLoaded() {
+                isLoaded = true
                 retryAttempt[0] = 0
                 retryHandler.removeCallbacks(retryRunnable)
             }
@@ -100,6 +111,9 @@ fun CipherTunBanner(
             override fun onAdFailedToLoad(
                 error: LoadAdError,
             ) {
+                // Collapse the slot when no ad is available; do not leave
+                // a blank banner-sized obstruction over app content.
+                isLoaded = false
                 retryHandler.removeCallbacks(retryRunnable)
 
                 /*
@@ -144,15 +158,25 @@ fun CipherTunBanner(
     /*
      * The Compose slot is EXACTLY the adaptive banner height.
      */
+    val visibleHeight = if (isLoaded) adHeightDp else 0.dp
+    val insetModifier = if (respectTopSystemInset && isLoaded) {
+        Modifier.windowInsetsPadding(
+            WindowInsets.safeDrawing.only(WindowInsetsSides.Top),
+        )
+    } else {
+        Modifier
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(adHeightDp),
+            .then(insetModifier)
+            .height(visibleHeight),
     ) {
         AndroidView(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(adHeightDp),
+                .height(visibleHeight),
             factory = {
                 adView
             },

@@ -105,6 +105,14 @@ jobs:
           path: sing-box
           fetch-depth: 1
 
+      - name: Checkout CipherTun patch source
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.sha }}
+          path: cipher-tun-app
+          fetch-depth: 1
+
       - name: Verify exact sing-box source
         working-directory: sing-box
         env:
@@ -129,6 +137,15 @@ jobs:
           cache: true
           cache-dependency-path: sing-box/go.sum
 
+      - name: Apply shared TCP proxy/payload patch and run regression tests
+        run: |
+          set -euo pipefail
+          python3 cipher-tun-app/tools/apply_singbox_ssh_payload.py sing-box
+          cp cipher-tun-app/tools/singbox-ssh-payload-tests.go.txt sing-box/common/dialer/payload_test.go
+          cd sing-box
+          gofmt -w option/dialer.go common/dialer/dialer.go common/dialer/payload.go common/dialer/payload_test.go
+          go test ./option ./common/dialer ./protocol/ssh ./protocol/vmess ./protocol/vless ./protocol/trojan
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -143,9 +160,33 @@ jobs:
 
           yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
 
-          "$SDK/cmdline-tools/latest/bin/sdkmanager" --channel=1             "ndk;${NDK_VERSION}"
+          SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
 
-          test -d "$SDK/ndk/${NDK_VERSION}"
+          # Retry transient or corrupted NDK downloads.
+          INSTALLED=false
+          for attempt in 1 2 3; do
+            echo "NDK installation attempt $attempt/3"
+
+            if "$SDKMANAGER" --channel=1 "ndk;${NDK_VERSION}" &&
+               test -x "$SDK/ndk/${NDK_VERSION}/ndk-build"; then
+              INSTALLED=true
+              break
+            fi
+
+            echo "NDK installation attempt $attempt failed."
+
+            if [ "$attempt" -lt 3 ]; then
+              rm -rf "$SDK/ndk/${NDK_VERSION}"
+              rm -rf "$SDK/.temp" "$HOME/.android/cache"
+              sleep 5
+            fi
+          done
+
+          if [ "$INSTALLED" != true ]; then
+            echo "::error::NDK ${NDK_VERSION} failed to install after 3 attempts."
+            exit 1
+          fi
 
           echo "ANDROID_NDK_HOME=$SDK/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
           echo "$SDK/ndk/${NDK_VERSION}" >> "$GITHUB_PATH"
@@ -206,6 +247,14 @@ jobs:
           repository: SagerNet/sing-box
           ref: ${{ needs.resolve-sing-box.outputs.tag }}
           path: sing-box
+          fetch-depth: 1
+
+      - name: Checkout CipherTun patch source
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.sha }}
+          path: cipher-tun-app
           fetch-depth: 1
 
       - name: Verify exact sing-box source
@@ -310,9 +359,33 @@ jobs:
 
           yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
 
-          "$SDK/cmdline-tools/latest/bin/sdkmanager" --channel=1             "ndk;${NDK_VERSION}"
+          SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          test -x "$SDKMANAGER"
 
-          test -d "$SDK/ndk/${NDK_VERSION}"
+          # Retry transient or corrupted NDK downloads.
+          INSTALLED=false
+          for attempt in 1 2 3; do
+            echo "NDK installation attempt $attempt/3"
+
+            if "$SDKMANAGER" --channel=1 "ndk;${NDK_VERSION}" &&
+               test -x "$SDK/ndk/${NDK_VERSION}/ndk-build"; then
+              INSTALLED=true
+              break
+            fi
+
+            echo "NDK installation attempt $attempt failed."
+
+            if [ "$attempt" -lt 3 ]; then
+              rm -rf "$SDK/ndk/${NDK_VERSION}"
+              rm -rf "$SDK/.temp" "$HOME/.android/cache"
+              sleep 5
+            fi
+          done
+
+          if [ "$INSTALLED" != true ]; then
+            echo "::error::NDK ${NDK_VERSION} failed to install after 3 attempts."
+            exit 1
+          fi
 
           echo "ANDROID_NDK_HOME=$SDK/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
           echo "$SDK/ndk/${NDK_VERSION}" >> "$GITHUB_PATH"

@@ -1,0 +1,70 @@
+package dialer
+
+import (
+	"bufio"
+	"context"
+	"io"
+	"net"
+	"testing"
+	"time"
+)
+
+func TestExpandPayload(t *testing.T) {
+	got := string(expandPayload("CONNECT [host_port] HTTP/1.1[crlf]Host: %host%[crlf][crlf]", "ssh.example", 443))
+	want := "CONNECT ssh.example:443 HTTP/1.1\r\nHost: ssh.example\r\n\r\n"
+	if got != want {
+		t.Fatalf("expandPayload() = %q, want %q", got, want)
+	}
+}
+
+func TestReadConnectResponsePreservesFollowingProtocolBanner(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	go func() {
+		_, _ = server.Write([]byte("HTTP/1.1 200 Connection established\r\nProxy-Agent: test\r\n\r\nSSH-2.0-test-banner\r\n"))
+	}()
+	wrapped, err := readConnectResponse(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	line, err := bufio.NewReader(wrapped).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line != "SSH-2.0-test-banner\r\n" {
+		t.Fatalf("banner = %q", line)
+	}
+}
+
+func TestWritePayloadSplitAndDelay(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	readDone := make(chan string, 1)
+	go func() {
+		b := make([]byte, 6)
+		_, _ = io.ReadFull(server, b)
+		readDone <- string(b)
+	}()
+	start := time.Now()
+	if err := writePayload(context.Background(), client, []byte("abcdef"), 3, 5*time.Millisecond); err != nil {
+		t.Fatal(err)
+	}
+	if got := <-readDone; got != "abcdef" {
+		t.Fatalf("payload = %q", got)
+	}
+	if time.Since(start) < 5*time.Millisecond {
+		t.Fatal("split delay was not applied")
+	}
+}
+
+func TestReadConnectResponseRejectsNon2xx(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	go func() { _, _ = server.Write([]byte("HTTP/1.1 403 Forbidden\r\n\r\n")) }()
+	if _, err := readConnectResponse(client); err == nil {
+		t.Fatal("expected a rejected CONNECT response to fail")
+	}
+}

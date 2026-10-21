@@ -1,6 +1,7 @@
 package io.surprise.ciphertun.compose.wizard
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.calculateBottomPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -43,6 +44,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.surprise.ciphertun.compat.menuAnchorCompat
 import io.surprise.ciphertun.compose.base.SelectableMessageDialog
+import io.surprise.ciphertun.compose.topbar.LocalScaffoldPadding
 import io.surprise.ciphertun.config.OutboundProfile
 import io.surprise.ciphertun.config.ProfileWizardRepository
 import io.surprise.ciphertun.config.ProtocolType
@@ -60,6 +62,9 @@ fun WizardCredentialFormScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // The parent Scaffold keeps the adaptive banner reserved on wizard routes.
+    // Respect that outer inset so the final action can scroll fully above the ad slot.
+    val parentScaffoldPadding = LocalScaffoldPadding.current
 
     var remark by remember { mutableStateOf(initialName) }
     var server by remember { mutableStateOf("") }
@@ -78,6 +83,11 @@ fun WizardCredentialFormScreen(
     var sshCipher by remember { mutableStateOf("") }
     var sshMac by remember { mutableStateOf("") }
     var sshKexAlgorithm by remember { mutableStateOf("") }
+    var proxyServer by remember { mutableStateOf("") }
+    var proxyPort by remember { mutableStateOf("8080") }
+    var payload by remember { mutableStateOf("") }
+    var payloadSplit by remember { mutableStateOf("0") }
+    var payloadDelayMs by remember { mutableStateOf("0") }
     var publicKey by remember { mutableStateOf("") }
     var presharedKey by remember { mutableStateOf("") }
 
@@ -205,19 +215,39 @@ fun WizardCredentialFormScreen(
             ProtocolType.SHADOWSOCKS -> OutboundProfile.Shadowsocks(
                 remark = remark, server = server, serverPort = portInt,
                 method = method, password = password,
+                proxyServer = proxyServer.trim(),
+                proxyServerPort = proxyPort.toIntOrNull()?.coerceIn(1, 65535) ?: 8080,
+                payload = payload,
+                payloadSplit = payloadSplit.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+                payloadDelayMs = payloadDelayMs.toIntOrNull()?.coerceIn(0, 30000) ?: 0,
             )
             ProtocolType.VMESS -> OutboundProfile.VMess(
                 remark = remark, server = server, serverPort = portInt,
                 uuid = uuid, alterId = alterId.toIntOrNull() ?: 0,
                 security = vmessSecurity, transport = transport, tls = tls,
+                proxyServer = proxyServer.trim(),
+                proxyServerPort = proxyPort.toIntOrNull()?.coerceIn(1, 65535) ?: 8080,
+                payload = payload,
+                payloadSplit = payloadSplit.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+                payloadDelayMs = payloadDelayMs.toIntOrNull()?.coerceIn(0, 30000) ?: 0,
             )
             ProtocolType.VLESS -> OutboundProfile.VLess(
                 remark = remark, server = server, serverPort = portInt,
                 uuid = uuid, flow = flow, transport = transport, tls = tls,
+                proxyServer = proxyServer.trim(),
+                proxyServerPort = proxyPort.toIntOrNull()?.coerceIn(1, 65535) ?: 8080,
+                payload = payload,
+                payloadSplit = payloadSplit.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+                payloadDelayMs = payloadDelayMs.toIntOrNull()?.coerceIn(0, 30000) ?: 0,
             )
             ProtocolType.TROJAN -> OutboundProfile.Trojan(
                 remark = remark, server = server, serverPort = portInt,
                 password = password, transport = transport, tls = tls,
+                proxyServer = proxyServer.trim(),
+                proxyServerPort = proxyPort.toIntOrNull()?.coerceIn(1, 65535) ?: 8080,
+                payload = payload,
+                payloadSplit = payloadSplit.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+                payloadDelayMs = payloadDelayMs.toIntOrNull()?.coerceIn(0, 30000) ?: 0,
             )
             ProtocolType.HYSTERIA -> OutboundProfile.Hysteria(
                 remark = remark, server = server, serverPort = portInt,
@@ -295,6 +325,11 @@ fun WizardCredentialFormScreen(
                 cipher = sshCipher,
                 mac = sshMac,
                 kexAlgorithm = sshKexAlgorithm,
+                proxyServer = proxyServer.trim(),
+                proxyServerPort = proxyPort.toIntOrNull()?.coerceIn(1, 65535) ?: 8080,
+                payload = payload,
+                payloadSplit = payloadSplit.toIntOrNull()?.coerceAtLeast(0) ?: 0,
+                payloadDelayMs = payloadDelayMs.toIntOrNull()?.coerceIn(0, 30000) ?: 0,
             )
             ProtocolType.SHADOWTLS -> OutboundProfile.ShadowTls(
                 remark = remark, server = server, serverPort = portInt,
@@ -347,6 +382,14 @@ fun WizardCredentialFormScreen(
             errorMessage = "Endpoint is required."
             return
         }
+        if ((protocol == ProtocolType.SHADOWSOCKS || protocol == ProtocolType.VMESS ||
+                protocol == ProtocolType.VLESS || protocol == ProtocolType.TROJAN ||
+                protocol == ProtocolType.SSH) &&
+            proxyServer.isNotBlank() && payload.isBlank()
+        ) {
+            errorMessage = "Enter an HTTP CONNECT payload when a proxy host is configured."
+            return
+        }
         isSaving = true
         scope.launch {
             try {
@@ -380,6 +423,7 @@ fun WizardCredentialFormScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .padding(bottom = parentScaffoldPadding.calculateBottomPadding())
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -999,6 +1043,25 @@ fun WizardCredentialFormScreen(
                     MultilineField(
                         "Client Key (optional)", ocClientKey,
                         onValueChange = { ocClientKey = it },
+                    )
+                }
+            }
+
+            if (protocol == ProtocolType.SHADOWSOCKS || protocol == ProtocolType.VMESS ||
+                protocol == ProtocolType.VLESS || protocol == ProtocolType.TROJAN ||
+                protocol == ProtocolType.SSH
+            ) {
+                FormSection {
+                    Text("TCP proxy and custom payload", style = MaterialTheme.typography.titleSmall)
+                    LabeledField("HTTP CONNECT proxy host (optional)", proxyServer, onValueChange = { proxyServer = it })
+                    LabeledField("Proxy port", proxyPort, onValueChange = { proxyPort = it }, keyboardType = KeyboardType.Number)
+                    MultilineField("Payload (placeholders: [host], [port], [host_port], [crlf])", payload, onValueChange = { payload = it })
+                    LabeledField("Payload split byte position (0 = off)", payloadSplit, onValueChange = { payloadSplit = it }, keyboardType = KeyboardType.Number)
+                    LabeledField("Delay between payload parts in ms (0–30000)", payloadDelayMs, onValueChange = { payloadDelayMs = it }, keyboardType = KeyboardType.Number)
+                    Text(
+                        "Supported by the custom TCP dialer for Shadowsocks, VMess, VLESS, Trojan and SSH. With a proxy host set, the payload must send an HTTP CONNECT request and the engine requires a 2xx response. Use [crlf] for HTTP line endings.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

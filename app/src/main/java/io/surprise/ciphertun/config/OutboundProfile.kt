@@ -31,7 +31,12 @@ sealed class OutboundProfile {
         override val server: String = "",
         override val serverPort: Int = ProtocolType.SHADOWSOCKS.defaultPort,
         val method: String = "2022-blake3-aes-128-gcm",
-        val password: String = ""
+        val password: String = "",
+        val proxyServer: String = "",
+        val proxyServerPort: Int = 8080,
+        val payload: String = "",
+        val payloadSplit: Int = 0,
+        val payloadDelayMs: Int = 0
     ) : OutboundProfile()
 
     data class VMess(
@@ -42,7 +47,12 @@ sealed class OutboundProfile {
         val alterId: Int = 0,
         val security: String = "auto",
         val transport: TransportConfig = TransportConfig.None,
-        val tls: TlsConfig = TlsConfig()
+        val tls: TlsConfig = TlsConfig(),
+        val proxyServer: String = "",
+        val proxyServerPort: Int = 8080,
+        val payload: String = "",
+        val payloadSplit: Int = 0,
+        val payloadDelayMs: Int = 0
     ) : OutboundProfile()
 
     data class VLess(
@@ -52,7 +62,12 @@ sealed class OutboundProfile {
         val uuid: String = "",
         val flow: String = "none",
         val transport: TransportConfig = TransportConfig.None,
-        val tls: TlsConfig = TlsConfig()
+        val tls: TlsConfig = TlsConfig(),
+        val proxyServer: String = "",
+        val proxyServerPort: Int = 8080,
+        val payload: String = "",
+        val payloadSplit: Int = 0,
+        val payloadDelayMs: Int = 0
     ) : OutboundProfile()
 
     data class Trojan(
@@ -61,7 +76,12 @@ sealed class OutboundProfile {
         override val serverPort: Int = ProtocolType.TROJAN.defaultPort,
         val password: String = "",
         val transport: TransportConfig = TransportConfig.None,
-        val tls: TlsConfig = TlsConfig()
+        val tls: TlsConfig = TlsConfig(),
+        val proxyServer: String = "",
+        val proxyServerPort: Int = 8080,
+        val payload: String = "",
+        val payloadSplit: Int = 0,
+        val payloadDelayMs: Int = 0
     ) : OutboundProfile()
 
     data class Hysteria(
@@ -145,7 +165,12 @@ sealed class OutboundProfile {
         val clientVersion: String = "",
         val cipher: String = "",
         val mac: String = "",
-        val kexAlgorithm: String = ""
+        val kexAlgorithm: String = "",
+        val proxyServer: String = "",
+        val proxyServerPort: Int = 8080,
+        val payload: String = "",
+        val payloadSplit: Int = 0,
+        val payloadDelayMs: Int = 0
     ) : OutboundProfile()
 
     data class ShadowTls(

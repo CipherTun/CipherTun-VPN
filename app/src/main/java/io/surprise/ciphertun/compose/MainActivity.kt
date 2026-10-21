@@ -1303,20 +1303,11 @@ class MainActivity :
                 // TOP BANNER
                 // Protected by the status-bar safe inset.
                 // ========================================================
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(
-                            WindowInsets.safeDrawing.only(
-                                WindowInsetsSides.Top,
-                            ),
-                        ),
-                ) {
-                    CipherTunBanner(
-                        bannerAdUnitId = AdsConfig.BANNER_PRIMARY,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                CipherTunBanner(
+                    bannerAdUnitId = AdsConfig.BANNER_PRIMARY,
+                    modifier = Modifier.fillMaxWidth(),
+                    respectTopSystemInset = true,
+                )
 
                 // ========================================================
                 // ALL APP SCREENS

@@ -144,9 +144,49 @@ object SingBoxConfigFactory {
         val direct = JSONObject().put("type", "direct").put("tag", "direct")
         val array = JSONArray()
         if (profile != null) {
-            array.put(buildOutboundJson(profile).put("tag", "proxy"))
+            val outbound = buildOutboundJson(profile)
+            when (profile) {
+                is OutboundProfile.Shadowsocks -> outbound.putProxyPayload(
+                    profile.proxyServer, profile.proxyServerPort, profile.payload,
+                    profile.payloadSplit, profile.payloadDelayMs,
+                )
+                is OutboundProfile.VMess -> outbound.putProxyPayload(
+                    profile.proxyServer, profile.proxyServerPort, profile.payload,
+                    profile.payloadSplit, profile.payloadDelayMs,
+                )
+                is OutboundProfile.VLess -> outbound.putProxyPayload(
+                    profile.proxyServer, profile.proxyServerPort, profile.payload,
+                    profile.payloadSplit, profile.payloadDelayMs,
+                )
+                is OutboundProfile.Trojan -> outbound.putProxyPayload(
+                    profile.proxyServer, profile.proxyServerPort, profile.payload,
+                    profile.payloadSplit, profile.payloadDelayMs,
+                )
+                is OutboundProfile.Ssh -> outbound.putProxyPayload(
+                    profile.proxyServer, profile.proxyServerPort, profile.payload,
+                    profile.payloadSplit, profile.payloadDelayMs,
+                )
+                else -> Unit
+            }
+            array.put(outbound.put("tag", "proxy"))
         }
         return array.put(direct)
+    }
+
+    private fun JSONObject.putProxyPayload(
+        proxyServer: String,
+        proxyServerPort: Int,
+        payload: String,
+        payloadSplit: Int,
+        payloadDelayMs: Int,
+    ) {
+        if (proxyServer.isNotBlank()) {
+            put("proxy_server", proxyServer.trim())
+            put("proxy_server_port", proxyServerPort.coerceIn(1, 65535))
+        }
+        if (payload.isNotBlank()) put("payload", payload)
+        if (payloadSplit > 0) put("payload_split", payloadSplit)
+        if (payloadDelayMs > 0) put("payload_delay_ms", payloadDelayMs.coerceIn(0, 30000))
     }
 
     private fun buildRoute(endpointProfile: Boolean): JSONObject {
